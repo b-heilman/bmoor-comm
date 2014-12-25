@@ -1,0 +1,101 @@
+<html>
+<head>
+	<script src="bower_components/jquery/dist/jquery.js"></script>
+	<script src="bower_components/angular/angular.js"></script>
+	<script src="bower_components/bmoor/dist/bmoor.js"></script>
+	<script src="bmoor-comm.js"></script>
+</head>
+<body>
+	<script>
+		bMoor.inject(
+			['bmoor.comm.adapter.Angular','bmock.comm.XhrIntercept',
+			function( connect, Interceptor ){
+				Interceptor.enable();
+				Interceptor.expect({
+					response : {
+						foo : 'bar'
+					}
+				});
+
+				connect({
+					url : 'angular-success.htm',
+					data : { woo : 'a-all' }
+				}).then(
+					function( results ){
+						console.log( '-> responded', results.config.url );
+						console.log( results );
+					},
+					function( results ){
+						console.log( '-> responded with fail' );
+					}
+				);
+
+				Interceptor.expect({
+					response : {
+						foo : 'bar'
+					},
+					status : 404
+				});
+
+				connect({
+					url : 'angular-fail.htm',
+					data : { woo : 'a-all' }
+				}).then(
+					function( results ){
+						console.log( '-> responded with success' );
+					},
+					function( results ){
+						console.log( '-> responded', results.config.url );
+						console.log( results );
+					}
+				);
+			}]
+		);
+
+		bMoor.inject(
+			['bmoor.comm.Connect','bmock.comm.XhrIntercept',
+			function( connect, Interceptor ){
+				Interceptor.enable();
+				Interceptor.expect({
+					response : {
+						foo : 'bar'
+					}
+				});
+
+				connect({
+					url : 'bmoor-success.htm',
+					data : { woo : 'b-all' }
+				}).then(
+					function( results ){
+						console.log( '-> responded', results.config.url );
+						console.log( results );
+					},
+					function( results ){
+						console.log( '-> responded with fail' );
+					}
+				);
+
+				Interceptor.expect({
+					response : {
+						foo : 'bar'
+					},
+					status : 404
+				});
+
+				connect({
+					url : 'bmoor-fail.htm',
+					data : { woo : 'b-all' }
+				}).then(
+					function( results ){
+						console.log( '-> responded with success' );
+					},
+					function( results ){
+						console.log( '-> responded', results.config.url );
+						console.log( results );
+					}
+				);
+			}]
+		);
+	</script>
+</body>
+</html>

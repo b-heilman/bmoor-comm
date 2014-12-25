@@ -1,0 +1,39 @@
+{
+  "name": "bmoor-comm",
+  "version": "0.0.1",
+  "author": "Brian Heilman <das.ist.junk@gmail.com>",
+  "descritpion": "A way for bmoor to get around town",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/b-heilman/bmoor-comm.git"
+  },
+  "main": "dist/bmoor-comm.js",
+  "dependencies": {
+    "bmoor": "0.0.5"
+  },
+  "devDependencies": {
+    "express": "*",
+    "gulp": "*",
+    "gulp-clean": "*",
+    "gulp-concat": "*",
+    "gulp-jshint": "*",
+    "gulp-karma": "*",
+    "gulp-rename": "*",
+    "gulp-serve": "*",
+    "gulp-uglifyjs": "*",
+    "gulp-watch": "*",
+    "gulp-yuidoc": "*",
+    "gulp-header": "*",
+    "gulp-footer": "*",
+    "jshint": "*",
+    "jshint-stylish": "*",
+    "karma": "*",
+    "karma-chrome-launcher": "*",
+    "karma-firefox-launcher": "*",
+    "karma-ie-launcher": "*",
+    "karma-jasmine": "*",
+    "karma-phantomjs-launcher": "*",
+    "karma-safari-launcher": "*",
+    "map-stream": "*"
+  }
+}
