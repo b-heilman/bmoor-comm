@@ -83,319 +83,6 @@ bMoor.make('bmock.comm.Http',
 	}]
 );
 (function(){
-'use strict';
-
-var bMoor,
-	xHR;
-
-if ( typeof window === 'undefined' ){
-	require('bmoor');
-	xHR = require('XMLHttpRequest');
-}else{
-	bMoor = window.bMoor;
-	xHR = window.XMLHttpRequest;
-}
-
-bMoor.define( 'bmock.comm.XhrIntercept', 
-	['bmoor.defer.Basic',
-	function( Defer ){
-		var expecting = [];
-
-		return {
-			enable : function(){
-				window.XMLHttpRequest = function( options ){
-					return {
-						withCredentials : true,
-						setRequestHeader : function(){},
-						open : function( method, url, async, user, password ){
-							// onreadystatechange
-							// readystate -> 4
-
-							// status
-							// response
-							// getAllResponseHeaders()
-						},
-						send : function( data ){
-							var t;
-
-							if ( expecting.length ){
-								t = expecting.shift();
-
-								this.readyState = 4;
-								this.status = t.status || 200;
-								this.responseType = 'json';
-								this.response = t.response;
-								this.getAllResponseHeaders = function(){
-									return { some : 'header' };
-								};
-
-								/*
-								if ( this.onreadystatechange ){
-									this.onreadystatechange();
-								}
-								*/
-								if ( this.onload ){
-									this.onload();
-								}
-							}else{
-								throw new Error('I was not expecting anything');
-							}
-							
-						}
-					};
-				};
-			},
-			disable : function(){
-				window.XMLHttpRequest = xHR;
-			},
-			expect : function( ops ){
-				expecting.push( ops );
-			}
-		};
-	}]
-);
-
-}());
-bMoor.make('bmoor.storage.Local', [
-	function(){
-		'use strict';
-
-		return {
-			construct : function StorageLocal( name ){
-				this.name = name;
-			},
-			properties : {
-				// create an instance of this class in the storage
-				create : function( key, obj ){
-					var id,
-						collection;
-
-					if ( !obj[key] ){
-						id = Math.random() * 100000000;
-						obj[ key ] = id;
-					}else{
-						id = obj[ key ];
-					}
-
-					if ( localStorage[this.name] ){
-						collection = JSON.parse( localStorage[this.name] );
-					}else{
-						collection = [];
-					}
-
-					collection.push( id );
-					localStorage[this.name] = JSON.stringify( collection );
-					localStorage[this.name+'-'+id] = JSON.stringify( obj );
-
-					return bMoor.dwrap( obj );
-				},
-				// update the whole object in the storage
-				update : function( id, obj ){
-					localStorage[this.name+'-'+id] = JSON.stringify( obj );
-
-					return bMoor.dwrap( obj );
-				},
-				// partial update of the object in storage
-				partial : function( id, partial ){
-					var obj;
-
-					if ( localStorage[this.name+'-'+id] ){
-						obj = JSON.parse( localStorage[this.name+'-'+id] );
-						localStorage[ this.name+'-'+id ] = JSON.stringify( bMoor.merge(obj,partial) );
-					}
-
-					return bMoor.dwrap( obj );
-				},
-				// allows for the user to get one or many elements
-				get : function( id ){
-					var i, c,
-						res;
-
-					if ( bMoor.isArrayLike(id) ){
-						res = [];
-
-						for( i = 0, c = id.length; i < c; i++ ){
-							res[ i ] = JSON.parse( localStorage[this.name+'-'+id[i]] );
-						}
-
-						return bMoor.dwrap( res );
-					}else{
-						return bMoor.dwrap( JSON.parse(localStorage[this.name+'-'+id]) );
-					}
-				},
-				// get all instances
-				getAll : function(){
-					var i, c,
-						all,
-						res;
-
-					if ( localStorage[this.name] ){
-						res = [];
-						all = JSON.parse( localStorage[this.name] );
-
-						for( i = 0, c = all.length; i < c; i++ ){
-							res.push( JSON.parse(localStorage[this.name+'-'+all[i]]) );
-						}
-
-						return bMoor.dwrap( res );
-					}else{
-						return bMoor.drwap( [] );
-					}
-				},
-				// delete one or many elements
-				remove : function( id ){
-					var i, c, 
-						res,
-						collection;
-
-					if ( localStorage[this.name] ){
-						collection = JSON.parse( localStorage[this.name] );
-
-						if ( bMoor.isArrayLike(id) ){
-							res = [];
-							for( i = 0, c = id.length; i < c; i++ ){
-								localStorage.removeItem( this.name+'-'+id[i] );
-								res.push( bMoor.array.remove(collection,id[i]) );
-							}
-						}else{
-							localStorage.removeItem( this.name+'-'+id );
-							res = bMoor.array.remove( collection, id );
-						}
-
-						localStorage[this.name] = JSON.stringify( collection );
-
-						return bMoor.dwrap( res );
-					}
-				},
-				// completely blow away all data
-				destroy : function(){
-					var i, c, 
-						collection;
-
-					if ( localStorage[this.name] ){
-						collection = JSON.parse( localStorage[this.name] );
-
-						for( i = 0, c = collection.length; i < c; i++ ){
-							localStorage.removeItem( this.name+'-'+collection[i] );
-						}
-
-						localStorage.removeItem( this.name );
-					}
-
-					return bMoor.dwrap( true );
-				}
-			}
-		};
-	}]
-);
-bMoor.make('bmoor.storage.Mongo', [
-	'bmoor.extender.Mixin',
-	function( Mixin ){
-		'use strict';
-
-		return {
-			parent : Mixin,
-			construct : function StorageLocal(){},
-			properties : {
-				// create an instance of this class in the storage
-				create : function( obj ){
-
-				},
-				// update the whole object in the storage
-				update : function( id, obj ){
-
-				},
-				// partial update of the object in storage
-				partial : function( id, partial ){
-
-				},
-				// allows for the user to get one or many elements
-				get : function( id ){
-
-				},
-				// get all instances
-				getAll : function(){
-
-				},
-				// delete one or many elements
-				remove : function( id ){
-					
-				}
-			}
-		};
-	}]
-);
-bMoor.make('bmoor.storage.Remote', [
-	'bmoor.comm.Streamer',
-	function( Streamer ){
-		'use strict';
-
-		return {
-			construct : function StorageRemote( name, root ){
-				this.root = root;
-				this.name = name;
-			},
-			extend : [
-				new Streamer({
-					create : {
-						url : function(){
-							return this.root;
-						},
-						method : 'POST',
-						success : function( res, key ){
-							if ( !res[key] ){
-								res[ key ] = Math.random() * 100000000;
-							}
-
-							return res;
-						}
-					},
-					update : {
-						url : function( id ){
-							return this.root + '/' + id;
-						},
-						method : 'POST'
-					},
-					partial : {
-						url : function( id ){
-							return this.root + '/' + id;
-						},
-						method : 'POST'
-					},
-					get : {
-						url : function( id ){
-							if ( bMoor.isArray(id) ){
-								return this.root + '/' + id.join(',');
-							}else{
-								return this.root + '/' + id;
-							}
-						},
-						method : 'GET'
-					},
-					getAll : {
-						url : function(){
-							console.log('--get all--');
-							return this.root;
-						},
-						method : 'GET'
-					},
-					remove : {
-						url : function( id ){
-							return this.root + '/' + id;
-						},
-						method : 'DELETE'
-					},
-					destroy : {
-						url : function(){
-							alert('TODO : destroy');
-						}
-					}
-				})
-			]
-		};
-	}]
-);
-(function(){
 
 var bMoor,
 	xHR;
@@ -407,7 +94,7 @@ if ( typeof window === 'undefined' ){
 	bMoor = window.bMoor;
 	if ( window.XMLHttpRequest ){
 		xHR = function(){
-			return window.XMLHttpRequest.apply( window, arguments );
+			return new window.XMLHttpRequest( arguments );
 		};
 	}else{
 		xHR = (function(){
@@ -424,7 +111,7 @@ bMoor.define('bmoor.comm.Connect',
 	['bmoor.defer.Basic',
 	function( Defer ){
 		function makeXHR( method, url, async, user, password ){
-			var xhr = new xHR();
+			var xhr = xHR();
 
 			if ( "withCredentials" in xhr ){
 				// doop
@@ -443,6 +130,7 @@ bMoor.define('bmoor.comm.Connect',
 		}
 
 		function processReponse( url, options, q, status, response, headers ){
+			// TODO : processing JSON
 			var r,
 				action,
 				valid = ( 200 <= status && status < 300 ),
@@ -456,7 +144,7 @@ bMoor.define('bmoor.comm.Connect',
 			// normalize IE bug (http://bugs.jquery.com/ticket/1450)
 			status = status == 1223 ? 204 : status;
 			action = valid ? 'resolve' : 'reject';
-
+			
 			q[action]({
 				'status' : status,
 				'headers' : headers,
@@ -811,6 +499,452 @@ bMoor.make('bmoor.comm.Streamer',
 	}]
 );
 
+(function(){
+'use strict';
+
+var XHR,
+	xHrBridge,
+	settings,
+	bridge;
+
+if ( typeof window !== 'undefined' ){
+	XHR = window.XMLHttpRequest;
+	window.XMLHttpRequest = function(){
+		return bridge();
+	};
+
+	bMoor.make( 'bmoor.http.Intercept',
+		['bmoor.defer.Basic', 'bmoor.http.Router',
+		function( Defer, Router ){
+			var expecting,
+				intercepts;
+
+			settings = {
+				enable : function(){
+					bridge = xHrBridge;
+				},
+				expect : function( ops ){
+					if ( !expecting ){
+						expecting = [];
+					}
+					expecting.push( ops );
+				},
+				routes : function( s ){
+					intercepts = new Router(s);
+				},
+				router : function( router ){
+					intercepts = router;
+				}
+			};
+
+			return {
+				wrap : XHR,
+				construct : function( options ){
+					this.$wrap( options );
+				},
+				statics : settings,
+				properties : {
+					open : function( method, url, async, user, password ){
+						var info,
+							t;
+
+						this.intercept = null;
+						if ( expecting && expecting.length ){
+							this.intercept = expecting.shift();
+						}else if ( intercepts ){
+							this.intercept = intercepts.match( url );
+						}
+
+						this.$wrapped.open( method, url, async, user, password );
+					},
+					send : function( data ){
+						var dis = this,
+							intercept = this.intercept;
+
+						if ( bMoor.isFunction(intercept) ){
+							intercept = intercept( data );
+						}
+
+						if ( intercept ){
+							this.status = intercept.status || 200;
+							this.response = intercept.response;
+							this.readyState = 4;
+							this.responseType = intercept.responseType || 'json';
+							
+							this.getAllResponseHeaders = function(){
+								return { some : 'header' };
+							};
+
+							/*
+							if ( this.onreadystatechange ){
+								this.onreadystatechange();
+							}
+							*/
+							if ( this.onload ){
+								this.onload();
+							}
+						}else{
+							this.$wrapped.onload = function(){
+								dis.status = this.status;
+								dis.response = this.response;
+								dis.readyState = this.readyState;
+								dis.responseType = this.responseType;
+								dis.responseText = this.responseText;
+
+								dis.onload.apply( dis, arguments );
+							};
+
+							this.$wrapped.send( data );
+						}
+					}
+				},
+				finalize : function( Def ){
+					bridge = function BridgeHolder( options ){
+						return new XHR(options);
+					};
+
+					xHrBridge = function XhrBridge( options ){
+						return new Def(options);
+					};
+				}
+			};
+		}]
+	);
+}
+
+}());
+bMoor.make('bmoor.http.Router',
+	[
+	function(){
+		// TODO : method
+		function addRoutes( router, path, options, func ){
+			if ( bMoor.isObject(path) ){
+				bMoor.each(path, function( f, p ){
+					addRoute( router, p, options, f );
+				});
+			}else{
+				addRoute( router, path, options, func );
+			}
+		}
+
+		function addRoute( router, path, options, func ){
+			var t,
+				method = (options&&options.method) ? options.method.toUpperCase() : 'GET',
+				o = router.routes[ method ],
+				s = path.split('/');
+
+			if ( !o ){
+				o = router.routes[ method ] = {};
+			}
+
+			while( s.length ){
+				t = s.shift();
+				if ( !o[t] ){
+					o[t] = {};
+				}
+
+				o = o[t];
+			}
+
+			o.$func = func;
+		}
+
+		return {
+			construct : function HttpRouter( route, options, func ){
+				this.setRoutes( route, options, func );
+			},
+			properties : {
+				setRoutes : function( path, options, func ){
+					this.routes = {};
+
+					if ( arguments.length === 2 && bMoor.isFunction(options) ){
+						func = options;
+						options = null;
+					}
+
+					addRoutes( this, path, options, func );
+				},
+				addRoute : function( path, options, func ){
+					if ( arguments.length === 2 && bMoor.isFunction(options) ){
+						func = options;
+						options = null;
+					}
+
+					addRoute( this, path, options, func );
+				},
+				match : function( method, url ){
+					var t,
+						func,
+						remainder,
+						o,
+						s;
+
+					if ( arguments.length == 1 ){
+						url = method;
+						method = 'GET';
+					}
+
+					o = this.routes[ method.toUpperCase() ];
+					s = url.split('/');
+
+					while( s.length && o ){
+						t = s.shift();
+						o = o[t];
+
+						if ( o ){
+							if ( o.$func ){
+								func = o.$func;
+								remainder = s.slice(0);
+							}
+						}
+					}
+
+					if ( func ){
+						return func.apply( func, remainder );
+					}
+				}
+			}
+		};
+	}]
+);
+bMoor.make('bmoor.storage.Local', [
+	function(){
+		'use strict';
+
+		return {
+			construct : function StorageLocal( name ){
+				this.name = name;
+			},
+			properties : {
+				// create an instance of this class in the storage
+				create : function( key, obj ){
+					var id,
+						collection;
+
+					if ( !obj[key] ){
+						id = Math.random() * 100000000;
+						obj[ key ] = id;
+					}else{
+						id = obj[ key ];
+					}
+
+					if ( localStorage[this.name] ){
+						collection = JSON.parse( localStorage[this.name] );
+					}else{
+						collection = [];
+					}
+
+					collection.push( id );
+					localStorage[this.name] = JSON.stringify( collection );
+					localStorage[this.name+'-'+id] = JSON.stringify( obj );
+
+					return bMoor.dwrap( obj );
+				},
+				// update the whole object in the storage
+				update : function( id, obj ){
+					localStorage[this.name+'-'+id] = JSON.stringify( obj );
+
+					return bMoor.dwrap( obj );
+				},
+				// partial update of the object in storage
+				partial : function( id, partial ){
+					var obj;
+
+					if ( localStorage[this.name+'-'+id] ){
+						obj = JSON.parse( localStorage[this.name+'-'+id] );
+						localStorage[ this.name+'-'+id ] = JSON.stringify( bMoor.merge(obj,partial) );
+					}
+
+					return bMoor.dwrap( obj );
+				},
+				// allows for the user to get one or many elements
+				get : function( id ){
+					var i, c,
+						res;
+
+					if ( bMoor.isArrayLike(id) ){
+						res = [];
+
+						for( i = 0, c = id.length; i < c; i++ ){
+							res[ i ] = JSON.parse( localStorage[this.name+'-'+id[i]] );
+						}
+
+						return bMoor.dwrap( res );
+					}else{
+						return bMoor.dwrap( JSON.parse(localStorage[this.name+'-'+id]) );
+					}
+				},
+				// get all instances
+				getAll : function(){
+					var i, c,
+						all,
+						res;
+
+					if ( localStorage[this.name] ){
+						res = [];
+						all = JSON.parse( localStorage[this.name] );
+
+						for( i = 0, c = all.length; i < c; i++ ){
+							res.push( JSON.parse(localStorage[this.name+'-'+all[i]]) );
+						}
+
+						return bMoor.dwrap( res );
+					}else{
+						return bMoor.drwap( [] );
+					}
+				},
+				// delete one or many elements
+				remove : function( id ){
+					var i, c, 
+						res,
+						collection;
+
+					if ( localStorage[this.name] ){
+						collection = JSON.parse( localStorage[this.name] );
+
+						if ( bMoor.isArrayLike(id) ){
+							res = [];
+							for( i = 0, c = id.length; i < c; i++ ){
+								localStorage.removeItem( this.name+'-'+id[i] );
+								res.push( bMoor.array.remove(collection,id[i]) );
+							}
+						}else{
+							localStorage.removeItem( this.name+'-'+id );
+							res = bMoor.array.remove( collection, id );
+						}
+
+						localStorage[this.name] = JSON.stringify( collection );
+
+						return bMoor.dwrap( res );
+					}
+				},
+				// completely blow away all data
+				destroy : function(){
+					var i, c, 
+						collection;
+
+					if ( localStorage[this.name] ){
+						collection = JSON.parse( localStorage[this.name] );
+
+						for( i = 0, c = collection.length; i < c; i++ ){
+							localStorage.removeItem( this.name+'-'+collection[i] );
+						}
+
+						localStorage.removeItem( this.name );
+					}
+
+					return bMoor.dwrap( true );
+				}
+			}
+		};
+	}]
+);
+bMoor.make('bmoor.storage.Mongo', [
+	'bmoor.extender.Mixin',
+	function( Mixin ){
+		'use strict';
+
+		return {
+			parent : Mixin,
+			construct : function StorageLocal(){},
+			properties : {
+				// create an instance of this class in the storage
+				create : function( obj ){
+
+				},
+				// update the whole object in the storage
+				update : function( id, obj ){
+
+				},
+				// partial update of the object in storage
+				partial : function( id, partial ){
+
+				},
+				// allows for the user to get one or many elements
+				get : function( id ){
+
+				},
+				// get all instances
+				getAll : function(){
+
+				},
+				// delete one or many elements
+				remove : function( id ){
+					
+				}
+			}
+		};
+	}]
+);
+bMoor.make('bmoor.storage.Remote', [
+	'bmoor.comm.Streamer',
+	function( Streamer ){
+		'use strict';
+
+		return {
+			construct : function StorageRemote( name, root ){
+				this.root = root;
+				this.name = name;
+			},
+			extend : [
+				new Streamer({
+					create : {
+						url : function(){
+							return this.root;
+						},
+						method : 'POST',
+						success : function( res, key ){
+							if ( !bMoor.isFunction(key) && !res[key] ){
+								res[ key ] = Math.random() * 100000000;
+							}
+
+							return res;
+						}
+					},
+					update : {
+						url : function( id ){
+							return this.root + '/' + id;
+						},
+						method : 'POST'
+					},
+					partial : {
+						url : function( id ){
+							return this.root + '/' + id;
+						},
+						method : 'POST'
+					},
+					get : {
+						url : function( id ){
+							if ( bMoor.isArray(id) ){
+								return this.root + '/' + id.join(',');
+							}else{
+								return this.root + '/' + id;
+							}
+						},
+						method : 'GET'
+					},
+					getAll : {
+						url : function(){
+							return this.root;
+						},
+						method : 'GET'
+					},
+					remove : {
+						url : function( id ){
+							return this.root + '/' + id;
+						},
+						method : 'DELETE'
+					},
+					destroy : {
+						url : function(){
+							alert('TODO : destroy');
+						}
+					}
+				})
+			]
+		};
+	}]
+);
 (function(){
 'use strict';
 

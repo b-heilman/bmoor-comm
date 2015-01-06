@@ -1,7 +1,13 @@
 describe('bmoor.comm.Streamer', function(){
-	var Streamer = bMoor.exists('bmoor.comm.Streamer'),
-		settings = bMoor.exists('bmoor.comm.Stream').settings,
-		Http = bMoor.exists('bmock.comm.Http');
+	var Streamer,
+		settings,
+		Http;
+
+	beforeEach(bMoor.test.injector(['bmoor.comm.Streamer','bmoor.comm.Stream','bmock.comm.Http', function( S, St, H ){
+		Streamer = S;
+		settings = St.settings;
+		Http = H;
+	}]));
 
 	describe( 'permit allow multiple streams to be configured at once', function(){
 		var http,

@@ -1,6 +1,12 @@
 describe('bmoor.comm.Connect', function(){
-	var connect = bMoor.exists('bmoor.comm.Connect'),
-		Interceptor = bMoor.exists('bmock.comm.XhrIntercept');
+	var XHR = window.XMLHttpRequest,
+		connect,
+		Interceptor;
+
+	beforeEach(bMoor.test.injector(['bmoor.comm.Connect','bmoor.http.Intercept',function( C, X ){
+		connect = C;
+		Interceptor = X;
+	}]));
 
 	describe( 'intercepting', function(){
 		it( 'should would', function(){

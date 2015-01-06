@@ -1,5 +1,5 @@
 ;(function(){
-/** bmoor v0.0.4 **/
+/** bmoor v0.0.6 **/
 var bMoor = {};
 
 (function( g ){
@@ -333,6 +333,15 @@ var bMoor = {};
 		});
 
 		return target;
+	}
+
+	function inherit( from ){
+		if ( from.prototype ){
+			// we assume this a constructor function
+			from = from.prototype;
+		}
+
+		return mask( from );
 	}
 
 	/**
@@ -862,7 +871,7 @@ var bMoor = {};
 	 * basic framework constructs
 	 **/
 
-	/**
+	 /**
 	 * Wraps the value in a promise and returns the promise
 	 *
 	 * @function dwrap
@@ -874,12 +883,30 @@ var bMoor = {};
 		var d;
 
 		if ( isQuark(value) ){
-			return value.$promise; // this way they get when the quark is ready
+			return value.$getDefinition(); // this way they get when the quark is ready
+		}else if ( isObject(value) && value.then ){ // assume it's a promise
+			return value;
 		}else{
 			d = new Defer(); 
 			d.resolve( value );
 			return d.promise;
 		}
+	}
+
+	/**
+	 * Wraps the value in a promise and returns the promise
+	 *
+	 * @function dfail
+	 * @namespace bMoor
+	 * @param {something} value The value to be returned by the promise.
+	 * @return {bmoor.defer.Promise}
+	 **/
+	function dfail( value ){
+		var d;
+
+		d = new Defer(); 
+		d.reject( value );
+		return d.promise;
 	}
 
 	/**
@@ -895,31 +922,54 @@ var bMoor = {};
 	 **/
 	function makeQuark( namespace, root ){
 		var path = parse( namespace ),
-			t = exists( path ),
+			def = exists( path ),
 			defer,
 			quark = function Quark (){
-				throw new Error('You tried to construct a Quark: '+path.join( '.' ));
+				throw new Error( 'You tried to construct a Quark: '+path.join('.') );
 			};
 
-		if ( isQuark(t) ){
-			return t;
+		if ( isQuark(def) ){
+			return def;
 		}else{
 			root = root || bMoor.namespace.root;
-
+						
 			quark.$isQuark = true;
 
 			if ( Defer ){
-				defer = new Defer();
+				quark.$getDefinition = function(){
+					defer = new Defer();
 
-				quark.$promise = defer.promise;
-				quark.$ready = function( obj ){
-					if ( defer.resolve ){
-						defer.resolve( obj );
+					if ( def ){
+						defer.resolve( def() );
 					}
 
-					// replace yourself
+					return defer.promise;
+				};
+
+				quark.$set = function( construct ){
 					if ( path ){
-						set( path, obj, root );
+						set( path, construct, root );
+					}
+
+					if ( defer ){
+						defer.resolve( construct );
+					}
+				};
+
+				quark.$setDefinition = function( construct ){
+					def = function(){
+						return dwrap( construct() ).then(function( obj ){
+							// replace yourself
+							if ( path ){
+								set( path, obj, root );
+							}
+
+							return obj;
+						});
+					};
+
+					if ( defer ){
+						defer.resolve( def() );
 					}
 				};
 			}
@@ -947,7 +997,7 @@ var bMoor = {};
 		if ( obj ){
 			return dwrap( obj );
 		}else{
-			return makeQuark( namespace, root ).$promise;
+			return makeQuark( namespace, root ).$getDefinition();
 		}
 	}
 
@@ -1372,33 +1422,26 @@ var bMoor = {};
 		 * @return {bmoor.defer.Promise} A sub promise
 		 **/
 		'then' : function( callback, errback ){
-			var dis = this,
-				defer = this.defer,
-				sub = this.sub = this.defer.sub(),
-				tCallback,
-				tErrback;
+			var defer = this.defer,
+				sub = this.defer.sub();
 
-			tCallback = function( value ){
+			function tCallback( value ){
 				try{
-					sub.resolve( (callback||defer.defaultSuccess)(value) );
-					dis.sub = null;
+					sub.resolve( (callback||defer.defaultSuccess).call(sub,value) );
 				}catch( ex ){
-					dis.sub = null;
 					sub.reject( ex );
 					defer.handler( ex );
 				}
-			};
+			}
 
-			tErrback = function( value ){
+			function tErrback( value ){
 				try{
-					sub.resolve( (errback||defer.defaultFailure)(value) );
-					dis.sub = null;
+					sub.resolve( (errback||defer.defaultFailure).call(sub,value) );
 				}catch( ex ){
-					dis.sub = null;
 					sub.reject( ex );
 					defer.handler( ex );
 				}
-			};
+			}
 
 			defer.register( tCallback, tErrback );
 
@@ -1413,19 +1456,6 @@ var bMoor = {};
 		 **/
 		'catch': function( callback ) {
 			return this.then( null, callback );
-		},
-		/**
-		 * A short cut that allows you to not need to throw inside the then
-		 * 
-		 * @method reject
-		 * @param {something} error The function called on success
-		 **/
-		'reject' : function( error ){
-			if ( this.sub ){
-				this.sub.reject( error );
-			}else{
-				throw new Error('must reject from inside a then');
-			}
 		},
 		/**
 		 * Supplies a function to call on success, it doesn't create a new chain
@@ -1559,7 +1589,7 @@ var bMoor = {};
 			 * @param {function} ex The value to be reported back
 			 **/
 			defaultSuccess : function( value ){ 
-				return value;
+				this.resolve( value );
 			},
 			/**
 			 * Called to handle a failure value 
@@ -1568,11 +1598,7 @@ var bMoor = {};
 			 * @param {function} message The value to be reported back
 			 **/
 			defaultFailure : function( message ){ 
-				if ( message instanceof Error ){
-					throw message;
-				}else{
-					throw new Error(message); // keep passing the buck till someone stops it
-				}
+				this.reject( message );
 			}, 
 			/**
 			 * Set up functions to be called when value is resolved
@@ -1582,10 +1608,10 @@ var bMoor = {};
 			 * @param {function} failure The value to be reported back
 			 **/
 			register : function( callback, failure ){
-				if ( this.value ){
-					this.value.then( callback, failure );
-				}else{
+				if ( this.callbacks ){
 					this.callbacks.push( [callback, failure] );
+				}else{
+					this.value.then( callback, failure );
 				}
 			},
 			/**
@@ -1736,6 +1762,7 @@ var bMoor = {};
 		// accessors
 		'parseNS'     : parse,
 		'dwrap'       : dwrap,
+		'dfail'       : dfail,
 		'set'         : set,
 		'get'         : get,
 		'del'         : del,
@@ -1774,6 +1801,7 @@ var bMoor = {};
 			'mask'      : mask,
 			'equals'    : equals,
 			'instantiate' : instantiate,
+			'inherit' : inherit,
 			// what is the difference between these?
 			'extend'    : extend, // copy properties from one object to another
 			'merge'     : merge, // deep version of extend
@@ -1822,10 +1850,9 @@ bMoor.inject(
 				this.preProcess = [];
 				this.postProcess = [];
 				this.clean = true;
-
+				this.definitions = {};
 				this.root = bMoor.namespace.root;
 			},
-			definitions = {},
 			instance;
 
 		/**
@@ -1942,8 +1969,8 @@ bMoor.inject(
 		 * @return {bmoor.defer.Promise} A quark's promise that will eventually return the defined object
 		 */
 		Compiler.prototype.make = function( name, definition ){
-			var namespace,
-				onReady,
+			var dis = this,
+				namespace,
 				quark;
 
 			if ( bMoor.isString(name) ){
@@ -1959,22 +1986,23 @@ bMoor.inject(
 				);
 			}
 			
-			definitions[ name ] = definition;
+			this.definitions[ name ] = definition;
 
 			quark = bMoor.makeQuark( namespace, this.root );
-			onReady = quark.$ready;
+			
+			quark.$setDefinition(function(){
+				return dis.build( definition ).then(function( result ){
+					if ( result.prototype ){
+						result.prototype._name = name;
+					}else{
+						result._name = name;
+					}
 
-			delete quark.$ready; // prevent accidental injection
-
-			return this.build( definition ).then(function( result ){
-				if ( result.prototype ){
-					result.prototype.$namespace = name;
-				}else{
-					result.$namespace = name;
-				}
-
-				onReady( result );
+					return result;
+				});
 			});
+
+			return quark;
 		};
 
 		Compiler.prototype.setRoot = function( r ){
@@ -2003,7 +2031,7 @@ bMoor.inject(
 
 			this.root = bMoor.namespace.root;
 
-			bMoor.iterate( definitions, function( definition, name ){
+			bMoor.iterate( this.definitions, function( definition, name ){
 				dis.make( name, definition );
 			});
 		};
@@ -2022,7 +2050,7 @@ bMoor.inject(
 		Compiler.prototype.mock = function( name, mocks ){
 			var dis = this,
 				r = bMoor.object.extend( {}, this.root, mocks ),
-				definition = definitions[name];
+				definition = this.definitions[name];
 
 			if ( !bMoor.isInjectable(definition) ){
 				// TODO : bMoor.makeInjectable
@@ -2055,13 +2083,13 @@ bMoor.inject(
 			
 			if ( bMoor.isInjectable(value) ){
 				bMoor.inject( value ).then( function( v ){
-					quark.$ready( v );
+					quark.$set( v );
 				});
 			}else{
-				quark.$ready( value );
+				quark.$set( value );
 			}
 
-			return quark.$promise;
+			return quark;
 		};
 
 		instance = new Compiler();
@@ -2076,6 +2104,12 @@ bMoor.inject(
 		});
 
 		bMoor.plugin( 'test', {
+			injector : function( injection ){
+				return function(){
+					instance.remake();
+					bMoor.inject( injection );
+				};
+			},
 			remake : function(){
 				instance.remake();
 			},
@@ -2099,7 +2133,7 @@ bMoor.inject(
 			}
 		});
 		
-		eCompiler.$ready( instance );
+		eCompiler.$set( instance );
 	}
 ]);
 bMoor.inject(['bmoor.build.Compiler', function( compiler ){
@@ -2154,21 +2188,12 @@ bMoor.inject(['bmoor.build.Compiler',function( compiler ){
 	compiler.addModule( 90, 'bmoor.build.ModInherit', 
 		['-id','-namespace','-name', '-mount','-parent',
 		function( id, namespace, name, mount, parent ){
-			var construct,
-				proto;
+			var construct;
 
 			if ( parent ){
 				construct = this;
 
-				if ( bMoor.isFunction(parent) ){
-					// we assume this a constructor function
-					proto = parent.prototype;
-				}else{
-					// we want to inherit directly from this object
-					proto = parent;
-				}
-
-				this.prototype = bMoor.object.mask( proto );
+				this.prototype = bMoor.object.inherit( parent );
 				this.prototype.constructor = construct;
 
 				delete this.$generic;
@@ -2254,53 +2279,85 @@ bMoor.inject(['bmoor.build.Compiler', function( compiler ){
 	);
 }]);
 
-bMoor.make( 'bmoor.defer.Stack', [function(){
+bMoor.inject(['bmoor.build.Compiler',function( compiler ){
 	'use strict';
-	
-	function stackOn( stack, func, args ){
-		return stack.promise.then(function(){
-			return func.apply( {}, args || [] );
-		});
-	}
 
-	return {
-		construct : function(){
-			this.promise = null;
-		},
-		properties : {
-			getPromise : function(){
-				return this.promise;
-			},
-			isStacked : function(){
-				return this.promise !== null;
-			},
-            // TODO: there is a bug in here, when a controller uses multiple it will break.
-            // -- highly unlikely, but noted
-			begin : function(){
-				this.promise = null;
-			},
-			run : function( func ){
-				if ( !this.promise ){
-					func();
-				}else{
-					this.promise['finally']( func );
-				}
-			},
-			add : function( func, args ){
-				if ( this.promise ){
-					this.promise = stackOn( this, func, args );
-				}else{
-					this.promise = func.apply( {}, args );
-					if ( !this.promise.then ){
-						this.promise = null;
+	compiler.addModule( 89, 'bmoor.build.ModWrapper', 
+		[ '-wrap',
+		function( wrapped ){
+			if ( wrapped ){
+				this.prototype.$wrap = function(){
+					var key,
+						temp = bMoor.object.instantiate( wrapped, arguments);
+
+					this.$wrapped = temp;
+
+					function extend( dis, value, key ){
+						if ( bMoor.isFunction(value) ){
+							dis[ key ] = function(){
+								return value.apply( temp, arguments );
+							};
+						}else{
+							dis[ key ] = value;
+						}
 					}
-				}
 
-				return this.promise;
+					for( key in temp ){
+						if ( !(key in this) ){
+							extend( this, temp[key], key );
+						}
+					}
+				};
 			}
-		}
-	};
+		}]
+	);
 }]);
+bMoor.make( 'bmoor.defer.Stack', [
+	'bmoor.defer.Basic',
+	function( Defer ){
+		'use strict';
+		
+		return {
+			construct : function(){
+				this.active = null;
+				this.defer = new Defer();
+				this.promise = this.defer.promise;
+			},
+			properties : {
+				run : function(){
+					var dis = this;
+
+					this.active.then(
+						function( v ){
+							dis.defer.resolve( v );
+						},
+						function( v ){
+							dis.defer.reject( v );
+						}
+					);
+				},
+				add : function( func, args, ctx ){
+					var dis = this;
+
+					if ( this.active ){
+						this.active = this.active.then(
+							function(){
+								return func.apply( ctx, args );
+							},
+							function( v ){
+								dis.defer.reject( v );
+							}
+						);
+					}else{
+						this.active = bMoor.dwrap( func.apply(ctx,args) );
+					}
+
+					return this;
+				}
+			}
+		};
+	}]
+);
 bMoor.make('bmoor.flow.Batch', 
 	[ 'bmoor.flow.Timeout',
 	function( Timeout ){
@@ -2545,14 +2602,14 @@ bMoor.make('bmoor.extender.Decorator', [
 				if ( bMoor.isFunction(action) ){
 					if ( bMoor.isFunction(old) ){
 						target[key] = function(){
-							var backup = this.$wrapped,
+							var backup = this.$old,
 								rtn;
 
-							this.$wrapped = old;
+							this.$old = old;
 
 							rtn = action.apply( this, arguments );
 
-							this.$wrapped = backup;
+							this.$old = backup;
 
 							return rtn;
 						};
@@ -2625,16 +2682,19 @@ bMoor.make('bmoor.extender.Plugin', [
 				if ( bMoor.isFunction(action) ){
 					if ( bMoor.isFunction(old) ){
 						target[key] = function(){
-							var backup = plugin.$wrapped,
+							var backup = plugin.$old,
+								reference = plugin.$target,
 								rtn;
 
-							plugin.$wrapped = function(){
-								old.apply( target, arguments );
+							plugin.$target = target;
+							plugin.$old = function(){
+								return old.apply( target, arguments );
 							};
 
 							rtn = action.apply( plugin, arguments );
 
-							plugin.$wrapped = backup;
+							plugin.$old = backup;
+							plugin.$target = reference;
 
 							return rtn;
 						};

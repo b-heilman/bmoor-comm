@@ -10,7 +10,7 @@ if ( typeof window === 'undefined' ){
 	bMoor = window.bMoor;
 	if ( window.XMLHttpRequest ){
 		xHR = function(){
-			return window.XMLHttpRequest.apply( window, arguments );
+			return new window.XMLHttpRequest( arguments );
 		};
 	}else{
 		xHR = (function(){
@@ -27,7 +27,7 @@ bMoor.define('bmoor.comm.Connect',
 	['bmoor.defer.Basic',
 	function( Defer ){
 		function makeXHR( method, url, async, user, password ){
-			var xhr = new xHR();
+			var xhr = xHR();
 
 			if ( "withCredentials" in xhr ){
 				// doop
@@ -46,6 +46,7 @@ bMoor.define('bmoor.comm.Connect',
 		}
 
 		function processReponse( url, options, q, status, response, headers ){
+			// TODO : processing JSON
 			var r,
 				action,
 				valid = ( 200 <= status && status < 300 ),
@@ -59,7 +60,7 @@ bMoor.define('bmoor.comm.Connect',
 			// normalize IE bug (http://bugs.jquery.com/ticket/1450)
 			status = status == 1223 ? 204 : status;
 			action = valid ? 'resolve' : 'reject';
-
+			
 			q[action]({
 				'status' : status,
 				'headers' : headers,

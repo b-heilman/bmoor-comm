@@ -9,7 +9,7 @@
   },
   "main": "dist/bmoor-comm.js",
   "dependencies": {
-    "bmoor": "0.0.5"
+    "bmoor": "0.0.6"
   },
   "devDependencies": {
     "express": "*",

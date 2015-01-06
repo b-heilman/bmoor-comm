@@ -16,7 +16,7 @@ bMoor.make('bmoor.storage.Remote', [
 						},
 						method : 'POST',
 						success : function( res, key ){
-							if ( !res[key] ){
+							if ( !bMoor.isFunction(key) && !res[key] ){
 								res[ key ] = Math.random() * 100000000;
 							}
 

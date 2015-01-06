@@ -1,12 +1,12 @@
 {
-  "name": "bmoor-cache",
-  "main": "dist/bmoor-cache.js",
-  "version": "0.0.1",
-  "homepage": "https://github.com/b-heilman/bmoor-cache",
+  "name": "bmoor-comm",
+  "main": "dist/bmoor-comm.js",
+  "version": "0.0.2",
+  "homepage": "https://github.com/b-heilman/bmoor-comm",
   "authors": [
     "Brian Heilman <brian.heilman@gmail.com>"
   ],
-  "description": "A simple system for in memory storage",
+  "description": "Getting the conversation started",
   "license": "MIT",
   "ignore": [
     "**/.*",
@@ -21,7 +21,7 @@
     "TODO.txt"
   ],
   "dependencies": {
-    "bmoor": "0.0.5"
+    "bmoor": "0.0.7"
   },
   "devDependencies": {
     "angular": "~1.3.6",

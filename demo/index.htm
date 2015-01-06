@@ -7,14 +7,22 @@
 </head>
 <body>
 	<script>
+	setTimeout(function(){
 		bMoor.inject(
-			['bmoor.comm.adapter.Angular','bmock.comm.XhrIntercept',
+			['bmoor.comm.adapter.Angular','bmoor.http.Intercept',
 			function( connect, Interceptor ){
 				Interceptor.enable();
 				Interceptor.expect({
 					response : {
 						foo : 'bar'
 					}
+				});
+
+				Interceptor.expect({
+					response : {
+						foo : 'bar'
+					},
+					status : 404
 				});
 
 				connect({
@@ -22,38 +30,46 @@
 					data : { woo : 'a-all' }
 				}).then(
 					function( results ){
-						console.log( '-> responded', results.config.url );
-						console.log( results );
+						console.log( '1 -> responded', results.config.url );
+						console.log( '=>', results.data );
 					},
 					function( results ){
-						console.log( '-> responded with fail' );
+						console.log( '1 -> responded with fail' );
 					}
 				);
-
-				Interceptor.expect({
-					response : {
-						foo : 'bar'
-					},
-					status : 404
-				});
 
 				connect({
 					url : 'angular-fail.htm',
 					data : { woo : 'a-all' }
 				}).then(
 					function( results ){
-						console.log( '-> responded with success' );
+						console.log( '2 -> responded with success' );
 					},
 					function( results ){
-						console.log( '-> responded', results.config.url );
-						console.log( results );
+						console.log( '2 -> responded', results.config.url );
+						console.log( '=>', results.data );
+					}
+				);
+
+				connect({
+					url : 'ping.json',
+					data : { woo : 'b-all' }
+				}).then(
+					function( results ){
+						console.log( '3 -> responded', results.config.url );
+						console.log( '=>', results.data );
+					},
+					function( results ){
+						console.log( '3 -> responded with fail' );
 					}
 				);
 			}]
 		);
+	}, 0 );
 
+	setTimeout(function(){
 		bMoor.inject(
-			['bmoor.comm.Connect','bmock.comm.XhrIntercept',
+			['bmoor.comm.Connect','bmoor.http.Intercept',
 			function( connect, Interceptor ){
 				Interceptor.enable();
 				Interceptor.expect({
@@ -62,19 +78,6 @@
 					}
 				});
 
-				connect({
-					url : 'bmoor-success.htm',
-					data : { woo : 'b-all' }
-				}).then(
-					function( results ){
-						console.log( '-> responded', results.config.url );
-						console.log( results );
-					},
-					function( results ){
-						console.log( '-> responded with fail' );
-					}
-				);
-
 				Interceptor.expect({
 					response : {
 						foo : 'bar'
@@ -83,19 +86,136 @@
 				});
 
 				connect({
+					url : 'bmoor-success.htm',
+					data : { woo : 'b-all' }
+				}).then(
+					function( results ){
+						console.log( '4 -> responded', results.config.url );
+						console.log( '=>', results.data );
+					},
+					function( results ){
+						console.log( '4 -> responded with fail' );
+					}
+				);
+
+				connect({
 					url : 'bmoor-fail.htm',
 					data : { woo : 'b-all' }
 				}).then(
 					function( results ){
-						console.log( '-> responded with success' );
+						console.log( '5 -> responded with success' );
 					},
 					function( results ){
-						console.log( '-> responded', results.config.url );
-						console.log( results );
+						console.log( '5 -> responded', results.config.url );
+						console.log( '=>', results.data );
+					}
+				);
+
+				connect({
+					url : 'ping.json',
+					data : { woo : 'b-all' }
+				}).then(
+					function( results ){
+						console.log( '6 -> responded', results.config.url );
+						console.log( '=>', results.data );
+					},
+					function( results ){
+						console.log( '6 -> responded with fail' );
 					}
 				);
 			}]
 		);
+	},1000);
+
+	setTimeout(function(){
+		bMoor.inject(
+			['bmoor.comm.adapter.Angular','bmoor.http.Intercept','bmoor.http.Router',
+			function( connect, Interceptor, Router ){
+				var r;
+				Interceptor.enable();
+				r = new Router({
+					'bmoor-success.htm' : function(){
+						return {
+							status : 200,
+							response : {
+								req : 'success'
+							}
+						};
+					},
+					'bmoor-fail.htm' : function(){
+						return {
+							status : 404,
+							response : {
+								req : 'failure'
+							}
+						};
+					},
+					'/some/thing' : function(){
+						return {
+							status : 200,
+							response : {
+								req : 'success'
+							}
+						};
+					}
+				});
+
+				Interceptor.router( r );
+
+				connect({
+					url : 'bmoor-success.htm',
+					data : { woo : 'b-all' }
+				}).then(
+					function( results ){
+						console.log( '7 -> responded', results.config.url );
+						console.log( '=>', results.data );
+					},
+					function( results ){
+						console.log( '7 -> responded with fail' );
+					}
+				);
+
+				connect({
+					url : 'bmoor-fail.htm',
+					data : { woo : 'b-all' }
+				}).then(
+					function( results ){
+						console.log( '8 -> responded with success' );
+					},
+					function( results ){
+						console.log( '8 -> responded', results.config.url );
+						console.log( '=>', results.data );
+					}
+				);
+
+				connect({
+					url : '/some/thing',
+					data : { woo : 'b-all' }
+				}).then(
+					function( results ){
+						console.log( '9 -> responded', results.config.url );
+						console.log( '=>', results.data );
+					},
+					function( results ){
+						console.log( '9 -> responded with fail' );
+					}
+				);
+
+				connect({
+					url : 'ping.json',
+					data : { woo : 'b-all' }
+				}).then(
+					function( results ){
+						console.log( '10 -> responded', results.config.url );
+						console.log( '=>', results.data );
+					},
+					function( results ){
+						console.log( '10 -> responded with fail' );
+					}
+				);
+			}]
+		);
+	},2000);
 	</script>
 </body>
 </html>

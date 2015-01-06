@@ -1,5 +1,9 @@
 describe('bmoor.storage.Local', function(){
-	var Local = bMoor.exists('bmoor.storage.Local');
+	var Local;
+
+	beforeEach(bMoor.test.injector(['bmoor.storage.Local',function( L ){
+		Local = L;
+	}]));
 
 	it('should be defined', function(){
 		expect( Local ).toBeDefined();

@@ -1,7 +1,13 @@
 describe('bmoor.storage.Remote', function(){
-	var Remote = bMoor.exists('bmoor.storage.Remote'),
-		settings = bMoor.exists('bmoor.comm.Stream').settings,
-		Http = bMoor.exists('bmock.comm.Http');
+	var Remote,
+		settings,
+		Http;
+
+	beforeEach(bMoor.test.injector(['bmoor.storage.Remote','bmoor.comm.Stream','bmock.comm.Http', function( R, St, H ){
+		Remote = R;
+		settings = St.settings;
+		Http = H;
+	}]));
 
 	it( 'should be defined', function(){
 		expect( Remote ).toBeDefined();
