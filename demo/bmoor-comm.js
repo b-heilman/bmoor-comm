@@ -1,5 +1,5 @@
 ;(function(){
-/** bmoor-comm v0.0.1 **/
+/** bmoor-comm v0.0.3 **/
 // TODO : this should become something like HttpBackend
 bMoor.make('bmock.comm.Http', 
 	['bmoor.defer.Basic',
