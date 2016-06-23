@@ -1,976 +1,387 @@
-;(function(){
-/** bmoor-comm v0.0.3 **/
-// TODO : this should become something like HttpBackend
-bMoor.make('bmock.comm.Http', 
-	['bmoor.defer.Basic',
-	function( Basic ){
-		
-		function MockConnector(){
-			this.expecting = [];
+var bmoorComm =
+/******/ (function(modules) { // webpackBootstrap
+/******/ 	// The module cache
+/******/ 	var installedModules = {};
 
-			if ( !(this instanceof MockConnector) ){
-				return new MockConnector();
-			}
-		}
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
 
-		return {
-			construct : MockConnector,
-			properties : {
-				getConnector : function(){
-					var dis = this,
-						q = new Basic(),
-						t;
+/******/ 		// Check if module is in cache
+/******/ 		if(installedModules[moduleId])
+/******/ 			return installedModules[moduleId].exports;
 
-					return function( request ){
-						if ( dis.expecting.length ){
-							t = dis.expecting.shift();
-							
-							expect( request.url ).toBe( t.url );
-							expect( request.method.toUpperCase() ).toBe( t.method.toUpperCase() );
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = installedModules[moduleId] = {
+/******/ 			exports: {},
+/******/ 			id: moduleId,
+/******/ 			loaded: false
+/******/ 		};
 
-							if ( !t.code || t.code === 200 ){
-								q.resolve({
-									data : t.response,
-									code : 200
-								});
-							}else{
-								q.reject({
-									message : t.response,
-									code : t.code
-								});
-							}
-						}else{
-							expect( request.url ).toBeUndefined();
-						}
+/******/ 		// Execute the module function
+/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
 
-						return q.promise;
-					};
-				},
-				expect : function( method, url ){
-					var req;
+/******/ 		// Flag the module as loaded
+/******/ 		module.loaded = true;
 
-					if ( url === undefined ){
-						url = method;
-						method = 'GET';
-					}
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
 
-					req = {
-						url : url,
-						method : method,
-						code : 200,
-						response : {}
-					};
 
-					this.expecting.push( req );
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = modules;
 
-					return {
-						respond : function( code, response ){
-							if ( response === undefined ){
-								response = code;
-								code = 200;
-							}
+/******/ 	// expose the module cache
+/******/ 	__webpack_require__.c = installedModules;
 
-							req.response = response;
-							req.code = code;
-						}
-					};
-				},
-				hasMetExpectations : function(){
-					expect( this.expecting.length ).toBe( 0 );
-				}
-			}
-		};
-	}]
-);
-(function(){
+/******/ 	// __webpack_public_path__
+/******/ 	__webpack_require__.p = "";
 
-var bMoor,
-	xHR;
+/******/ 	// Load entry module and return exports
+/******/ 	return __webpack_require__(0);
+/******/ })
+/************************************************************************/
+/******/ ([
+/* 0 */
+/***/ function(module, exports, __webpack_require__) {
 
-if ( typeof window === 'undefined' ){
-	bMoor = require('bmoor');
-	xHR = require('XMLHttpRequest');
-}else{
-	bMoor = window.bMoor;
-	if ( window.XMLHttpRequest ){
-		xHR = function(){
-			return new window.XMLHttpRequest( arguments );
-		};
-	}else{
-		xHR = (function(){
-			/* global ActiveXObject */
-			try { return new ActiveXObject("Msxml2.XMLHTTP.6.0"); } catch (e1) {}
-			try { return new ActiveXObject("Msxml2.XMLHTTP.3.0"); } catch (e2) {}
-			try { return new ActiveXObject("Msxml2.XMLHTTP"); } catch (e3) {}
-			throw 'error' /* TODO : error */;
-		}());
-	}
-}
+	'use strict';
 
-bMoor.define('bmoor.comm.Connect',
-	['bmoor.defer.Basic',
-	function( Defer ){
-		function makeXHR( method, url, async, user, password ){
-			var xhr = xHR();
+	module.exports = __webpack_require__(1);
 
-			if ( "withCredentials" in xhr ){
-				// doop
-			}else if ( typeof XDomainRequest !== "undefined") {
-				// Otherwise, check if XDomainRequest.
-				// XDomainRequest only exists in IE, and is IE's way of making CORS requests.
-				xhr = new XDomainRequest();
-			} else {
-				// Otherwise, CORS is not supported by the browser.
-				xhr = null;
-			}
+/***/ },
+/* 1 */
+/***/ function(module, exports, __webpack_require__) {
 
-			xhr.open( method, url, async, user, password );
+	'use strict';
 
-			return xhr;
-		}
-
-		function processReponse( url, options, q, status, response, headers ){
-			// TODO : processing JSON
-			var r,
-				action,
-				valid = ( 200 <= status && status < 300 ),
-				protocol = url.protocol;
-
-			this.connection = null;
-
-			// fix status code for file protocol (it's always 0)
-			status = (protocol == 'file' && status === 0) ? (response ? 200 : 404) : status;
-
-			// normalize IE bug (http://bugs.jquery.com/ticket/1450)
-			status = status == 1223 ? 204 : status;
-			action = valid ? 'resolve' : 'reject';
-			
-			q[action]({
-				'status' : status,
-				'headers' : headers,
-				'config' : options,
-				'data' : response
-			});
-		}
-
-		return function commConnector( options ){
-			var aborted = false,
-				q = new Defer(),
-				xhr = makeXHR( 
-					options.method ? options.method.toUpperCase() : 'GET', 
-					options.url, 
-					(options.async === undefined ? true : options.async),
-					options.user,
-					options.password
-				);
-
-			xhr.onload = function() {
-				if (xhr.readyState == 4) {
-					processReponse(
-						bMoor.url.resolve( options.url ),
-						options,
-						q,
-						aborted ? -2 : xhr.status,
-						xhr.responseType ? xhr.response : xhr.responseText,
-						xhr.getAllResponseHeaders()
-					);
-				}
-			};
-
-			bMoor.forEach( options.headers, function( value, key ){
-				xhr.setRequestHeader(key, value);
-			});
-
-			if ( options.mimeType ) {
-				xhr.overrideMimeType( options.mimeType );
-			}
-
-			if ( options.responseType ) {
-				xhr.responseType = options.responseType;
-			}
-
-			xhr.send(options.data || null);
-
-			q.promise.abort = function(){
-				aborted = true;
-				xhr.abort();
-			};
-
-			return q.promise;
-		};
-	}]
-);
-
-}());
-
-bMoor.define('bmoor.comm.Stream',
-	['-bmoor.comm.Http', 'bmoor.defer.Basic', 'bmoor.flow.Interval', 'bmoor.flow.Timeout',
-	function( httpConnect, Defer, Interval, Timeout ){
-		'use strict';
-
-		var cache = {},
-			deferred = {};
-
-		function CommStream( settings ){
-			var request;
-
-			function loadFunc( type ){
-				return settings[ type ] || CommStream.settings[ type ];
-			}
-
-			if ( bMoor.isString(settings) ){
-				settings = {
-					url : settings
-				};
-			}
-
-			/*
-			settings :
-				message sending
-				- url
-				- preload
-				- massage
-				- response
-				- method
-				- linger : how long does a value remain deferred
-				- cached
-				- context
-				- headers
-				- http
-				
-				repeat response
-				- interval
-				- onStopRefresh
-
-				response handing
-				- success
-				- decode
-				- validation
-				- failure
-				- always
-			*/
-			request = function(){
-				var cancel,
-					args = arguments,
-					context = settings.context || this,
-					method = settings.method || 'GET',
-					url = bMoor.isFunction(settings.url) ? settings.url.apply(context, args) : settings.url,
-					reference = method + '::' + url,
-					http = loadFunc( 'http' ),
-					linger = loadFunc( 'linger' ),
-					decode = loadFunc( 'decode' ),
-					validation = loadFunc( 'validation' ),
-					success = loadFunc( 'success' ),
-					failure = loadFunc( 'failure' ),
-					always = loadFunc( 'always' );
-
-				function closeRequest(){
-					if ( linger ){
-						Timeout.set(function(){
-							deferred[ reference ] = null;
-						}, linger);
-					}else{
-						deferred[ reference ] = null;
-					}
-				}
-
-				function handleResponse( r ){
-					var t = r.then(
-						function( content ){
-							// we hava successful transmition
-							/*
-							I make the assumption that the httpConnector will return back an object that has,
-							at the very least, code and data attributes
-							*/
-							var res = decode ? decode( content ) : content,
-								data = res.data,
-								code = res.code;
-
-							if ( always ){
-								always.call( context );
-							}
-
-							if ( (validation && !validation(code, data)) ){
-								Array.prototype.unshift.call( args, res );
-								return failure.apply( context, args );
-							}else{
-								if ( success ){
-									Array.prototype.unshift.call( args, data );
-									return success.apply( context, args );
-								}else{
-									return data;
-								}
-							}
-						},
-						function ( res ){
-							// something went boom
-							if ( always ){
-								always.call( context );
-							}
-
-							Array.prototype.unshift.call( args, res );
-							return failure.apply( context, args );
-						}
-					);
-
-					return t;
-				}
-
-				function preRequest(){
-					var preload;
-
-					if ( settings.preload ){
-						if ( typeof(settings.preload) === 'function' ){
-							preload = settings.preload();
-						}else{
-							preload = settings.preload; // assumed to already be a promise
-						}
-					}
-
-					if ( !bMoor.isObject(preload) || !preload.then ){
-						preload = bMoor.dwrap( preload );
-					}
-
-					return preload;
-				}
-
-				function makeRequest(){
-					var req;
-
-					if ( settings.massage ){
-						Array.prototype.push.call( args, settings.massage.apply(context,args) );
-					}
-					
-					if ( settings.response ) {
-						if ( typeof(settings.response) === 'function' ){
-							req = settings.response.apply( context, args );
-						}else{
-							req = settings.response;
-						}
-
-						if ( req.then ){
-							return req.then(function( v ){
-								return {
-									data : v,
-									code : 200
-								};
-							});
-						}else{
-							return bMoor.dwrap({
-								data : req,
-								code : 200
-							});
-						}
-					}else{
-						return http(bMoor.object.extend(
-							{
-								'method' : method,
-								'data' : args[ args.length - 1 ],
-								'url' : url,
-								'headers' : bMoor.object.extend(
-									{ 'Content-Type' : 'application/json' },
-									CommStream.settings.headers,
-									settings.headers
-								)
-							},
-							settings.comm || CommStream.settings.comm
-						));
-					}
-				}
-
-				return preRequest().then(
-					function(){
-						var t,
-							f,
-							ff;
-
-						if ( settings.cached && cache[reference] ){
-							return cache[ reference ];
-						}else if ( deferred[reference] ){
-							return deferred[ reference ];
-						}
-
-						f = function(){
-							return handleResponse( makeRequest() );
-						};
-
-						if ( settings.interval !== undefined && !deferred[reference] ){
-							ff = function(){
-								request.lastRun = ( new Date() ).getTime();
-								return f();
-							};
-
-							request.setInterval = function( i ){
-								var time = ( new Date() ).getTime();
-
-								// I want to protect against
-								if ( !request.lastRun || time - i < request.lastRun ||
-									(request.lastInterval && request.lastInterval > i) ){
-									t = ff();
-								}else if ( url && settings.cached ){
-									// TODO : really?
-									t = cache[ reference ];
-								}else{
-									// this has to be something simulated, so...
-									t = request.lastResponse;
-								}
-
-								request.lastInterval = i;
-
-								if ( cancel ){
-									Interval.clear( cancel );
-								}
-
-								cancel = Interval.set(function(){
-									deferred[ reference ] = ff();
-								}, i);
-							};
-
-							request.stopRefresh = function(){
-								Interval.clear( cancel );
-								if ( settings.onStopRefresh ){
-									settings.onStopRefresh.call( context );
-								}
-							};
-
-							if ( settings.interval ){
-								request.setInterval( settings.interval ); // will implicitely call t = f()
-							}else{
-								t = ff(); // make sure it gets called
-							}
-						}else{
-							t = f();
-						}
-
-						if ( url ){
-							deferred[ reference ] = t;
-
-							if ( settings.cached ){
-								cache[ reference ] = t;
-							}
-
-							t.then( closeRequest, closeRequest );
-						}
-
-						request.lastResponse = t;
-
-						return t;
-					},
-					function(){
-						Array.prototype.unshift.call( args, {
-							code : 0,
-							message : 'Preload Error'
-						});
-						return settings.failure.apply( context, args );
-					}
-				);
-			};
-
-			return request;
-		}
-
-		CommStream.settings = {
-			interval : false,
-			linger : 30,
-			http : httpConnect,
-			comm : {},
-			headers : {}
-		};
-		
-		return CommStream;
-	}]
-);
-
-bMoor.make('bmoor.comm.Streamer',
-	['bmoor.extender.Mixin', 'bmoor.comm.Stream',
-	function( Mixin, Stream ){
-		'use strict';
-
-		return {
-			parent : Mixin,
-			construct : function CommStreamer( settings ){
-				var dis = this;
-
-				bMoor.iterate( settings, function( setting, key ){
-					dis[ key ] = new Stream( setting );
-				});
-			}
-		};
-	}]
-);
-
-(function(){
-'use strict';
-
-var XHR,
-	xHrBridge,
-	settings,
-	bridge;
-
-if ( typeof window !== 'undefined' ){
-	XHR = window.XMLHttpRequest;
-	window.XMLHttpRequest = function(){
-		return bridge();
+	module.exports = {
+		Requestor: __webpack_require__(2),
+		restful: __webpack_require__(4),
+		mock: __webpack_require__(5)
 	};
 
-	bMoor.make( 'bmoor.http.Intercept',
-		['bmoor.defer.Basic', 'bmoor.http.Router',
-		function( Defer, Router ){
-			var expecting,
-				intercepts;
+/***/ },
+/* 2 */
+/***/ function(module, exports, __webpack_require__) {
 
-			settings = {
-				enable : function(){
-					bridge = xHrBridge;
-				},
-				expect : function( ops ){
-					if ( !expecting ){
-						expecting = [];
-					}
-					expecting.push( ops );
-				},
-				routes : function( s ){
-					intercepts = new Router(s);
-				},
-				router : function( router ){
-					intercepts = router;
+	'use strict';
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var bmoor = __webpack_require__(3);
+
+	/*
+	settings :
+		message sending
+		- url
+		- method
+		- encode : process the parsed in args
+		- preload : run against ctx before send
+		- cached : should the request be cached, cached never clear
+		- context : evaluate variables against this context
+
+		request settings
+		- fetcher : the fetching object, uses api from window.fetch 
+		- headers
+		- data : generate the content to send to the server
+		- comm : per request settings
+		- intercept : don't send external request, instead stub with this
+
+		response handing
+		- decode : covert response 
+		- always
+		- validation
+		- success
+		- failure
+
+		close
+		- linger : how long does a request remain deferred
+	*/
+
+	var cache = {},
+	    deferred = {},
+	    defaultSettings = {
+		comm: {},
+		linger: 0,
+		headers: {}
+	};
+
+	var Requestor = function () {
+		function Requestor(settings) {
+			_classCallCheck(this, Requestor);
+
+			this.getSetting = function (setting) {
+				if (setting in settings) {
+					return settings[setting];
+				} else {
+					return defaultSettings[setting];
 				}
 			};
+		}
 
-			return {
-				wrap : XHR,
-				construct : function( options ){
-					this.$wrap( options );
-				},
-				statics : settings,
-				properties : {
-					open : function( method, url, async, user, password ){
-						var info,
-							t;
+		_createClass(Requestor, [{
+			key: 'go',
+			value: function go(args, settings) {
+				var _this = this;
 
-						this.intercept = null;
-						if ( expecting && expecting.length ){
-							this.intercept = expecting.shift();
-						}else if ( intercepts ){
-							this.intercept = intercepts.match( url );
-						}
+				var ctx,
+				    reference,
+				    url = this.getSetting('url'),
+				    cached = this.getSetting('cached'),
+				    encode = this.getSetting('encode'),
+				    method = this.getSetting('method'),
+				    context = this.getSetting('context');
 
-						this.$wrapped.open( method, url, async, user, password );
-					},
-					send : function( data ){
-						var dis = this,
-							intercept = this.intercept;
-
-						if ( bMoor.isFunction(intercept) ){
-							intercept = intercept( data );
-						}
-
-						if ( intercept ){
-							this.status = intercept.status || 200;
-							this.response = intercept.response;
-							this.readyState = 4;
-							this.responseType = intercept.responseType || 'json';
-							
-							this.getAllResponseHeaders = function(){
-								return { some : 'header' };
-							};
-
-							/*
-							if ( this.onreadystatechange ){
-								this.onreadystatechange();
-							}
-							*/
-							if ( this.onload ){
-								this.onload();
-							}
-						}else{
-							this.$wrapped.onload = function(){
-								dis.status = this.status;
-								dis.response = this.response;
-								dis.readyState = this.readyState;
-								dis.responseType = this.responseType;
-								dis.responseText = this.responseText;
-
-								dis.onload.apply( dis, arguments );
-							};
-
-							this.$wrapped.send( data );
-						}
-					}
-				},
-				finalize : function( Def ){
-					bridge = function BridgeHolder( options ){
-						return new XHR(options);
-					};
-
-					xHrBridge = function XhrBridge( options ){
-						return new Def(options);
-					};
+				if (!settings) {
+					settings = {};
 				}
-			};
-		}]
-	);
-}
 
-}());
-bMoor.make('bmoor.http.Router',
-	[
-	function(){
-		// TODO : method
-		function addRoutes( router, path, options, func ){
-			if ( bMoor.isObject(path) ){
-				bMoor.each(path, function( f, p ){
-					addRoute( router, p, options, f );
+				if (encode) {
+					ctx = encode(args);
+				} else {
+					ctx = args;
+				}
+
+				// some helping functions
+				ctx.$getSetting = function (setting) {
+					if (setting in settings) {
+						return settings[setting];
+					} else {
+						return _this.getSetting(setting);
+					}
+				};
+
+				ctx.$evalSetting = function (setting) {
+					setting = ctx.$getSetting(setting);
+					if (bmoor.isFunction(setting)) {
+						return setting.call(context, ctx);
+					} else {
+						return setting;
+					}
+				};
+
+				url = ctx.$evalSetting('url');
+				reference = method + '::' + url;
+
+				ctx.$ref = reference;
+
+				return Promise.resolve(ctx.$evalSetting('preload')).then(function () {
+					var res;
+
+					if (cached && cache[reference]) {
+						return cache[reference];
+					} else if (deferred[reference]) {
+						return deferred[reference];
+					} else {
+						res = _this.response(_this.request(ctx), ctx);
+
+						deferred[reference] = res;
+
+						if (settings.cached) {
+							cache[reference] = res;
+						}
+
+						bmoor.promise.always(res, function () {
+							_this.close(ctx);
+						});
+
+						return res;
+					}
 				});
-			}else{
-				addRoute( router, path, options, func );
 			}
-		}
+		}, {
+			key: 'request',
+			value: function request(ctx) {
+				var fetched,
+				    url = ctx.$evalSetting('url'),
+				    comm = ctx.$getSetting('comm'),
+				    code = ctx.$getSetting('code'),
+				    data = ctx.$evalSetting('data'),
+				    method = this.getSetting('method') || 'GET',
+				    fetcher = this.getSetting('fetcher'),
+				    headers = ctx.$evalSetting('headers'),
+				    intercept = ctx.$getSetting('intercept');
 
-		function addRoute( router, path, options, func ){
-			var t,
-				method = (options&&options.method) ? options.method.toUpperCase() : 'GET',
-				o = router.routes[ method ],
-				s = path.split('/');
-
-			if ( !o ){
-				o = router.routes[ method ] = {};
-			}
-
-			while( s.length ){
-				t = s.shift();
-				if ( !o[t] ){
-					o[t] = {};
-				}
-
-				o = o[t];
-			}
-
-			o.$func = func;
-		}
-
-		return {
-			construct : function HttpRouter( route, options, func ){
-				this.setRoutes( route, options, func );
-			},
-			properties : {
-				setRoutes : function( path, options, func ){
-					this.routes = {};
-
-					if ( arguments.length === 2 && bMoor.isFunction(options) ){
-						func = options;
-						options = null;
+				if (intercept) {
+					if (bmoor.isFunction(intercept)) {
+						intercept = intercept(data, ctx);
 					}
 
-					addRoutes( this, path, options, func );
-				},
-				addRoute : function( path, options, func ){
-					if ( arguments.length === 2 && bMoor.isFunction(options) ){
-						func = options;
-						options = null;
+					// here we intercept the request, and respond back with a fetch like object
+					if (intercept.then) {
+						return intercept.then(function (v) {
+							return {
+								json: function json() {
+									return v;
+								},
+								status: code || 200
+							};
+						});
+					} else {
+						return Promise.resolve({
+							json: function json() {
+								return intercept;
+							},
+							status: code || 200
+						});
 					}
+				} else {
+					fetched = fetcher(url, bmoor.object.extend({
+						'body': data,
+						'method': method,
+						'headers': headers
+					}, comm));
 
-					addRoute( this, path, options, func );
-				},
-				match : function( method, url ){
-					var t,
-						func,
-						remainder,
-						o,
-						s;
+					return Promise.resolve(fetched).then(function (res) {
+						var error;
 
-					if ( arguments.length == 1 ){
-						url = method;
-						method = 'GET';
-					}
-
-					o = this.routes[ method.toUpperCase() ];
-					s = url.split('/');
-
-					while( s.length && o ){
-						t = s.shift();
-						o = o[t];
-
-						if ( o ){
-							if ( o.$func ){
-								func = o.$func;
-								remainder = s.slice(0);
+						if (code) {
+							// we expect a particular http response status code
+							if (code === res.status) {
+								return res;
 							}
-						}
-					}
-
-					if ( func ){
-						return func.apply( func, remainder );
-					}
-				}
-			}
-		};
-	}]
-);
-bMoor.make('bmoor.storage.Local', [
-	function(){
-		'use strict';
-
-		return {
-			construct : function StorageLocal( name ){
-				this.name = name;
-			},
-			properties : {
-				// create an instance of this class in the storage
-				create : function( key, obj ){
-					var id,
-						collection;
-
-					if ( !obj[key] ){
-						id = Math.random() * 100000000;
-						obj[ key ] = id;
-					}else{
-						id = obj[ key ];
-					}
-
-					if ( localStorage[this.name] ){
-						collection = JSON.parse( localStorage[this.name] );
-					}else{
-						collection = [];
-					}
-
-					collection.push( id );
-					localStorage[this.name] = JSON.stringify( collection );
-					localStorage[this.name+'-'+id] = JSON.stringify( obj );
-
-					return bMoor.dwrap( obj );
-				},
-				// update the whole object in the storage
-				update : function( id, obj ){
-					localStorage[this.name+'-'+id] = JSON.stringify( obj );
-
-					return bMoor.dwrap( obj );
-				},
-				// partial update of the object in storage
-				partial : function( id, partial ){
-					var obj;
-
-					if ( localStorage[this.name+'-'+id] ){
-						obj = JSON.parse( localStorage[this.name+'-'+id] );
-						localStorage[ this.name+'-'+id ] = JSON.stringify( bMoor.merge(obj,partial) );
-					}
-
-					return bMoor.dwrap( obj );
-				},
-				// allows for the user to get one or many elements
-				get : function( id ){
-					var i, c,
-						res;
-
-					if ( bMoor.isArrayLike(id) ){
-						res = [];
-
-						for( i = 0, c = id.length; i < c; i++ ){
-							res[ i ] = JSON.parse( localStorage[this.name+'-'+id[i]] );
-						}
-
-						return bMoor.dwrap( res );
-					}else{
-						return bMoor.dwrap( JSON.parse(localStorage[this.name+'-'+id]) );
-					}
-				},
-				// get all instances
-				getAll : function(){
-					var i, c,
-						all,
-						res;
-
-					if ( localStorage[this.name] ){
-						res = [];
-						all = JSON.parse( localStorage[this.name] );
-
-						for( i = 0, c = all.length; i < c; i++ ){
-							res.push( JSON.parse(localStorage[this.name+'-'+all[i]]) );
-						}
-
-						return bMoor.dwrap( res );
-					}else{
-						return bMoor.drwap( [] );
-					}
-				},
-				// delete one or many elements
-				remove : function( id ){
-					var i, c, 
-						res,
-						collection;
-
-					if ( localStorage[this.name] ){
-						collection = JSON.parse( localStorage[this.name] );
-
-						if ( bMoor.isArrayLike(id) ){
-							res = [];
-							for( i = 0, c = id.length; i < c; i++ ){
-								localStorage.removeItem( this.name+'-'+id[i] );
-								res.push( bMoor.array.remove(collection,id[i]) );
-							}
-						}else{
-							localStorage.removeItem( this.name+'-'+id );
-							res = bMoor.array.remove( collection, id );
-						}
-
-						localStorage[this.name] = JSON.stringify( collection );
-
-						return bMoor.dwrap( res );
-					}
-				},
-				// completely blow away all data
-				destroy : function(){
-					var i, c, 
-						collection;
-
-					if ( localStorage[this.name] ){
-						collection = JSON.parse( localStorage[this.name] );
-
-						for( i = 0, c = collection.length; i < c; i++ ){
-							localStorage.removeItem( this.name+'-'+collection[i] );
-						}
-
-						localStorage.removeItem( this.name );
-					}
-
-					return bMoor.dwrap( true );
-				}
-			}
-		};
-	}]
-);
-bMoor.make('bmoor.storage.Mongo', [
-	'bmoor.extender.Mixin',
-	function( Mixin ){
-		'use strict';
-
-		return {
-			parent : Mixin,
-			construct : function StorageLocal(){},
-			properties : {
-				// create an instance of this class in the storage
-				create : function( obj ){
-
-				},
-				// update the whole object in the storage
-				update : function( id, obj ){
-
-				},
-				// partial update of the object in storage
-				partial : function( id, partial ){
-
-				},
-				// allows for the user to get one or many elements
-				get : function( id ){
-
-				},
-				// get all instances
-				getAll : function(){
-
-				},
-				// delete one or many elements
-				remove : function( id ){
-					
-				}
-			}
-		};
-	}]
-);
-bMoor.make('bmoor.storage.Remote', [
-	'bmoor.comm.Streamer',
-	function( Streamer ){
-		'use strict';
-
-		return {
-			construct : function StorageRemote( name, root ){
-				this.root = root;
-				this.name = name;
-			},
-			extend : [
-				new Streamer({
-					create : {
-						url : function(){
-							return this.root;
-						},
-						method : 'POST',
-						success : function( res, key ){
-							if ( !bMoor.isFunction(key) && !res[key] ){
-								res[ key ] = Math.random() * 100000000;
-							}
-
+						} else if (res.status >= 200 && res.status < 300) {
 							return res;
 						}
-					},
-					update : {
-						url : function( id ){
-							return this.root + '/' + id;
-						},
-						method : 'POST'
-					},
-					partial : {
-						url : function( id ){
-							return this.root + '/' + id;
-						},
-						method : 'POST'
-					},
-					get : {
-						url : function( id ){
-							if ( bMoor.isArray(id) ){
-								return this.root + '/' + id.join(',');
-							}else{
-								return this.root + '/' + id;
-							}
-						},
-						method : 'GET'
-					},
-					getAll : {
-						url : function(){
-							return this.root;
-						},
-						method : 'GET'
-					},
-					remove : {
-						url : function( id ){
-							return this.root + '/' + id;
-						},
-						method : 'DELETE'
-					},
-					destroy : {
-						url : function(){
-							alert('TODO : destroy');
-						}
+
+						error = new Error(res.statusText);
+						error.response = res;
+
+						throw error;
+					});
+				}
+			}
+		}, {
+			key: 'response',
+			value: function response(q, ctx) {
+				var decode = ctx.$getSetting('decode'),
+				    always = ctx.$getSetting('always'),
+				    success = ctx.$getSetting('success'),
+				    failure = ctx.$getSetting('failure'),
+				    context = ctx.$getSetting('context'),
+				    validation = ctx.$getSetting('validation');
+
+				return bmoor.promise.always(bmoor.promise.always(q, function () {
+					if (always) {
+						always.call(context, ctx);
 					}
-				})
-			]
-		};
-	}]
-);
-(function(){
-'use strict';
+				}).then(function (fetchedReponse) {
+					// we hava successful transmition
+					var res = decode ? decode(fetchedReponse) : fetchedReponse.json ? fetchedReponse.json() : fetchedReponse; // am I ok with this?
 
-if ( typeof angular !== 'undefined' ){
-	bMoor.define('bmoor.comm.adapter.Angular',
-		['bmoor.defer.Basic',
-		function( Defer ){
-			var $http = angular.injector(['ng']).get('$http');
-
-			return function commAngularAdapter( options ){
-				var r = new Defer();
-
-				$http( options ).then(
-					function( res ){
-						r.resolve( res );
-					},
-					function( res ){
-						r.reject( res );
+					if (validation) {
+						// invalid, throw Error
+						validation.call(context, res, ctx);
 					}
-				);
 
-				return r.promise;
+					if (success) {
+						return success.call(context, res, ctx);
+					} else {
+						return res;
+					}
+				}), function (response) {
+					if (response instanceof Error) {
+						failure.call(context, ctx);
+					}
+				});
+			}
+		}, {
+			key: 'close',
+			value: function close(ctx) {
+				var linger = ctx.$getSetting('linger');
+
+				if (linger !== null) {
+					setTimeout(function () {
+						deferred[ctx.$ref] = null;
+					}, linger);
+				} else {
+					deferred[ctx.$ref] = null;
+				}
+			}
+		}]);
+
+		return Requestor;
+	}();
+
+	Requestor.$settings = defaultSettings;
+	Requestor.clearCache = function () {
+		cache = {};
+		deferred = {};
+	};
+
+	module.exports = Requestor;
+
+/***/ },
+/* 3 */
+/***/ function(module, exports) {
+
+	module.exports = bmoor;
+
+/***/ },
+/* 4 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var bmoor = __webpack_require__(3),
+	    Requestor = __webpack_require__(2);
+
+	module.exports = function (obj, definition) {
+		bmoor.iterate(definition, function (def, name) {
+			var req = new Requestor(def),
+			    fn = function fn(args) {
+				return req.go(args);
 			};
-		}]
-	);
-}
 
-}());
-}());
+			fn.$settings = def;
+
+			obj[name] = fn;
+		});
+	};
+
+/***/ },
+/* 5 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var bmoor = __webpack_require__(3);
+
+	module.exports = function (obj, interceptions) {
+		var orig = {};
+
+		bmoor.iterate(interceptions, function (intercept, name) {
+			var fn = obj[name];
+
+			if (fn.$settings) {
+				orig[name] = fn.$settings.intercept;
+			}
+		});
+
+		return {
+			disable: function disable() {
+				bmoor.iterate(interceptions, function (intercept, name) {
+					var fn = obj[name];
+
+					if (fn.$settings) {
+						fn.$settings.intercept = orig[name];
+					}
+				});
+			},
+			enable: function enable() {
+				bmoor.iterate(interceptions, function (intercept, name) {
+					var fn = obj[name];
+
+					if (fn.$settings) {
+						fn.$settings.intercept = intercept;
+					}
+				});
+			}
+		};
+	};
+
+/***/ }
+/******/ ]);

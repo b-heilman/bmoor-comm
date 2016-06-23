@@ -1,3 +1,0 @@
-* Flesh out the intercepter so I can direct a storage.Remote to storage.Local
-* add massage functionality to Remote and Local
-* externalize the functions of remote so options can be edited if needed
