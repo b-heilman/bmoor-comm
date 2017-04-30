@@ -1,0 +1,211 @@
+var bmoor = require('bmoor'),
+	uhaul = require('./Repo.js'),
+	Promise = require('es6-promise').Promise;
+
+/*
+function mimic( dis, feed, field ){
+	if ( feed && feed[field] ){
+		dis[field].$settings = feed[field].$settings;
+	}else{
+		dis[field].$settings = {};
+	}
+}
+*/
+
+class Storage {
+	constructor( name, ops ){
+		var store,
+			collection,
+			settings = ops || {},
+			id = settings.id || 'id',
+			feed = settings.feed;
+
+		store = settings.session ? sessionStorage : localStorage;
+
+		this.id = id;
+		this.feed = feed;
+
+		this.$index = {};
+		this.$collection = settings.prepop || [];
+
+		uhaul.register( name, ops );
+
+		this.save = function(){
+			store.setItem( name, JSON.stringify(this.$collection) );
+		};
+
+		collection = settings.clear ? null : store.getItem( name );
+
+		try {
+			if ( collection ){
+				collection = JSON.parse( collection );
+				
+				collection.forEach( ( obj ) => {
+					this.$index[ obj[id] ] = obj;
+					this.$collection.push( obj );
+				});
+			}
+		}catch( ex ){
+			store.removeItem( name );
+		}
+
+		// let's try to mimic a Crud object a bit
+		/*
+		mimic( this, feed, 'read' );
+		mimic( this, feed, 'all' );
+		mimic( this, feed, 'list' );
+		mimic( this, feed, 'create' );
+		mimic( this, feed, 'update' );
+		mimic( this, feed, 'delete' );
+		mimic( this, feed, 'search' );
+		*/
+	}
+
+	// return only one
+	read( qry ){
+		var key;
+
+		return this.all().then( () => {
+			var t;
+
+			if ( bmoor.isObject(qry) ){
+				key = qry[ this.id ];
+
+				if ( !key ){
+					return this.search( qry ).then(function( res ){
+						return res[0];
+					});
+				}
+			}else{
+				key = qry;
+			}
+
+			t = this.$index[key];
+
+			
+			if ( t ){
+				return t;
+			}else{
+				throw { error:'Storage:read' };
+			}
+		});
+	}
+
+	// return an unedited list of all
+	all( qry ){
+		if ( !this.$collection.length && this.feed ){
+			return this.feed.all( qry ).then( ( res ) => {
+				res.forEach( ( obj ) => {
+					this.$index[ obj[this.id] ] = obj;
+					this.$collection.push( obj );
+				});
+
+				return this.$collection;
+			});
+		}else{
+			return Promise.resolve( this.$collection );
+		}
+	}
+
+	// return possibly truncated list of all
+	list( qry ){
+		return this.all( qry );
+	}
+
+	_create( obj ){
+		this.$index[ obj[this.id] ] = obj;
+		this.$collection.push( obj );
+
+		this.save();
+
+		return obj;
+	}
+
+	create( obj ){
+		var id = Date.now() + '-' + this.$collection.length;
+
+		if ( this.feed ){
+			return this.feed.create( obj ).then( this._create.bind(this) );
+		}else{
+			obj[ this.id ] = id;
+
+			return Promise.resolve( this._create(obj) );
+		}
+	}
+
+	update( qry, obj ){
+		var t;
+
+		if ( this.feed ){
+			t = this.feed.update( qry, obj );
+		}else{
+			t = Promise.resolve('OK');
+		}
+
+		return t.then( () => {
+			if ( obj ){
+				return this.read(qry).then( ( res ) => {
+					   if ( res ){
+						bmoor.object.extend( res, obj );
+					}
+
+					this.save();
+					
+					return 'OK';
+				});
+			}else{
+				this.save();
+
+				return 'OK';
+			}
+		});
+	} 
+
+	delete( qry ){
+		var t,
+			trg = this.read( qry );
+
+		if ( this.feed ){
+			t = this.feed.delete( qry ).then(function(){
+				return trg;
+			});
+		}else{
+			t = trg;
+		}
+
+		return t.then( () => {
+			bmoor.array.remove( this.$collection, trg );
+			this.$index[ trg[this.id] ] = undefined;
+
+			this.save();
+
+			return 'OK';
+		});
+	}
+
+	// expect array returned
+	search( qry ){
+		var rtn = [],
+			keys = Object.keys( qry );
+		
+		return this.all().then(function( res ){
+			res.forEach(function( obj ){
+				var miss = false;
+
+				keys.forEach(function( k ){
+					if ( obj[k] !== qry[k] ){
+						miss = true;
+					}
+				});
+
+				if ( !miss ){
+					rtn.push( obj );
+				}
+			});
+
+			return rtn;
+		});
+	}
+}
+
+module.exports = Storage;

@@ -1,4 +1,5 @@
-var bmoor = require('bmoor');
+var bmoor = require('bmoor'),
+	Promise = require('es6-promise').Promise;
 
 /*
 settings :
@@ -32,8 +33,9 @@ var cache = {},
 	deferred = {},
 	defaultSettings = {
 		comm : {},
-		linger : 0,
-		headers : {}
+		linger : null,
+		headers : {},
+		method: 'GET'
 	};
 
 class Requestor {
@@ -47,12 +49,12 @@ class Requestor {
 		};
 	}
 
-	go( args, settings ){
+	go( args, datum, settings ){
 		var ctx,
 			reference,
 			url = this.getSetting('url'),
+			prep = this.getSetting('prep'),
 			cached = this.getSetting('cached'),
-			encode = this.getSetting('encode'),
 			method = this.getSetting('method'),
 			context = this.getSetting('context');
 
@@ -60,10 +62,14 @@ class Requestor {
 			settings = {};
 		}
 
-		if ( encode ){
-			ctx = encode( args );
+		if ( prep ){
+			ctx = Object.create( prep(args) );
+			ctx.$args = args;
+		}else if ( args ){
+			ctx = Object.create( args );
+			ctx.$args = args;
 		}else{
-			ctx = args;
+			ctx = { $args: {} };
 		}
 
 		// some helping functions
@@ -76,11 +82,19 @@ class Requestor {
 		};
 
 		ctx.$evalSetting = ( setting ) => {
-			setting = ctx.$getSetting( setting );
-			if ( bmoor.isFunction(setting) ){
-				return setting.call( context, ctx );
+			var v = ctx.$getSetting( setting );
+
+			if ( bmoor.isString(v) && setting === 'url' ){
+				// allow all strings to be called via formatter
+				v = settings[ setting ] = bmoor.string.getFormatter(
+					v.replace(/\}\}/g,'|url}}')
+				);
+			}
+
+			if ( bmoor.isFunction(v) ){
+				return v.call( context, ctx, datum );
 			}else{
-				return setting;
+				return v;
 			}
 		};
 		
@@ -97,7 +111,7 @@ class Requestor {
 			}else if ( deferred[reference] ){
 				return deferred[ reference ];
 			}else{
-				res = this.response( this.request(ctx), ctx );
+				res = this.response( this.request(ctx,datum), ctx );
 				
 				deferred[ reference ] = res;
 
@@ -112,20 +126,24 @@ class Requestor {
 		});
 	}
 
-	request( ctx ){
+	request( ctx, datum ){
 		var fetched,
 			url = ctx.$evalSetting('url'),
 			comm = ctx.$getSetting('comm'),
 			code = ctx.$getSetting('code'),
-			data = ctx.$evalSetting('data'),
-			method = this.getSetting('method') || 'GET',
+			method = this.getSetting('method'),
+			encode = ctx.$getSetting('encode'),
 			fetcher = this.getSetting('fetcher'),
 			headers = ctx.$evalSetting('headers'),
 			intercept = ctx.$getSetting('intercept');
 		
+		if ( encode ){
+			datum = encode( datum, ctx.$args );
+		}
+
 		if ( intercept ) {
 			if ( bmoor.isFunction(intercept) ){
-				intercept = intercept( data, ctx );
+				intercept = intercept( datum, ctx );
 			}
 
 			// here we intercept the request, and respond back with a fetch like object
@@ -151,73 +169,103 @@ class Requestor {
 				url,
 				bmoor.object.extend(
 					{
-						'body': data,
+						'body': datum,
 						'method': method,
 						'headers': headers
-					}, 
+					},
 					comm
 				)
 			);
 
-			return Promise.resolve(fetched).then(function( res ){
-				var error;
-
-				if ( code ){
-					// we expect a particular http response status code
-					if ( code === res.status ){
-						return res;
-					}
-				}else if ( res.status >= 200 && res.status < 300 ){
-					return res;
-				}
-
-				error = new Error( res.statusText );
-			    error.response = res;
-
-			    throw error;
-			});
+			return Promise.resolve(fetched);
 		}
 	}
 
 	response( q, ctx ){
-		var decode = ctx.$getSetting('decode'),
+		var t,
+			response,
+			decode = ctx.$getSetting('decode'),
 			always = ctx.$getSetting('always'),
 			success = ctx.$getSetting('success'),
 			failure = ctx.$getSetting('failure'),
 			context = ctx.$getSetting('context'),
 			validation = ctx.$getSetting('validation');
 		
-		return bmoor.promise.always(
-			bmoor.promise.always( q, function(){
+		t = bmoor.promise.always(
+			q,
+			function(){
 				if ( always ){
+					if ( defaultSettings.always &&
+						always !== defaultSettings.always
+					){
+						defaultSettings.always.call(
+							context, ctx
+						);
+					}
+
 					always.call( context, ctx );
 				}
-			}).then(function( fetchedReponse ){
-				// we hava successful transmition
-				var res = decode ? decode( fetchedReponse ) : 
-					( fetchedReponse.json ? fetchedReponse.json() : fetchedReponse ); // am I ok with this?
-
-				if ( validation ){ // invalid, throw Error
-					validation.call( context, res, ctx );
-				}
-
-				if ( success ){
-					return success.call( context, res, ctx );
-				}else{
-					return res;
-				}
-			}),
-			function( response ){
-				if ( response instanceof Error ){
-					failure.call( context, ctx );
-				}
 			}
-		);
+		).then(function( fetchedReponse ){
+			// we hava successful transmition
+			var res = decode ? decode( fetchedReponse ) : 
+					( fetchedReponse.json ? 
+						fetchedReponse.json() : 
+						fetchedReponse 
+					),
+				code = ctx.$getSetting('code');
+
+			response = res;
+
+			if ( validation ){ // invalid, throw Error
+				if ( !validation.call(context,res,ctx) ){
+					throw new Error('Requestor::validation');
+				}
+			}else if ( code && res.status !== code ){
+				throw new Error('Requestor::code');
+			}else if ( res.status && 
+				( res.status < 200 || 299 < res.status )
+			){
+				throw new Error('Requestor::status');
+			}
+
+			if ( success ){
+				if ( defaultSettings.success &&
+					success !== defaultSettings.success
+				){
+					defaultSettings.success.call(
+						context, res, ctx
+					);
+				}
+
+				return success.call( context, res, ctx );
+			}else{
+				return res;
+			}
+		});
+
+		if ( failure ){
+			t.catch(function( error ){
+				error.response = response;
+
+				failure.call( context, error, ctx );
+
+				if ( defaultSettings.failure &&
+					failure !== defaultSettings.failure 
+				){
+					defaultSettings.failure.call( 
+						context, error, ctx
+					);
+				}
+			});
+		}
+
+		return t;
 	}
 
 	close( ctx ){
 		var linger = ctx.$getSetting('linger');
-
+		
 		if ( linger !== null ){
 			setTimeout(function(){
 				deferred[ ctx.$ref ] = null;

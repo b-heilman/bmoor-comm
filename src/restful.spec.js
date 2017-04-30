@@ -1,5 +1,5 @@
-describe('bmoor-comm::Requestor', function(){
-	it('should enable something', function(){
+describe('bmoor-comm::restful', function(){
+	it('should enable something', function( done ){
 		var called = false,
 			stream = {},
 			verify = function( url ){
@@ -7,10 +7,11 @@ describe('bmoor-comm::Requestor', function(){
 			},
 			response = { hello: 'world' };
 
-		bmoorComm.Requestor.$settings.fetcher = function( url, ops ){
+		bmoorComm.Requestor.clearCache();
+		bmoorComm.Requestor.$settings.fetcher = function( url ){
 			verify( url );
 			called = true;
-			return Promise.resolve({
+			return ES6Promise.resolve({
 				json: function(){
 					return response;
 				},
@@ -21,7 +22,7 @@ describe('bmoor-comm::Requestor', function(){
 		bmoorComm.restful( stream, {
 			getUser: {
 				url: function( ctx ){
-					return '/users/'+ctx.user.id
+					return '/users/'+ctx.user.id;
 				}
 			}
 		});

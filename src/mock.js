@@ -3,6 +3,7 @@ var bmoor = require('bmoor');
 module.exports = function( obj, interceptions ){
 	var orig = {};
 
+	// copy original values to allow disable
 	bmoor.iterate( interceptions, function( intercept, name ){
 		var fn = obj[name];
 

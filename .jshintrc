@@ -17,5 +17,14 @@
 	"unused": true,
 	"strict": "implied",
 	"trailing": true,
-	"smarttabs": true
+	"smarttabs": true,
+	"globals": {
+		"ES6Promise": false,
+		"describe": false,
+		"it": false,
+		"expect": false,
+		"bmoorComm": false,
+		"afterEach": false,
+		"beforeEach": false
+	}
 }

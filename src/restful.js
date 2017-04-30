@@ -4,8 +4,8 @@ var bmoor = require('bmoor'),
 module.exports = function( obj, definition ){
 	bmoor.iterate( definition, function( def, name ){
 		var req = new Requestor( def ),
-			fn = function( args ){
-				return req.go( args );
+			fn = function restfulRequest( args, datum, settings ){
+				return req.go( args, datum, settings );
 			};
 
 		fn.$settings = def;

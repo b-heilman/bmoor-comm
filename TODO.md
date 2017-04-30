@@ -1,5 +1,7 @@
 - Use fetch library for http communication in node and browser
 
+- Global Requestor error handler
+
 - Way to more abstractly pass data from request method
   - args : method to decode arguments to hash object
   - url : method to build url

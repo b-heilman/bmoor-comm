@@ -43,27 +43,215 @@ var bmoorComm =
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	module.exports = __webpack_require__(1);
 
-/***/ },
+/***/ }),
 /* 1 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	module.exports = {
-		Requestor: __webpack_require__(2),
-		restful: __webpack_require__(4),
-		mock: __webpack_require__(5)
+		connect: __webpack_require__(2),
+		mock: __webpack_require__(10),
+		Requestor: __webpack_require__(6),
+		restful: __webpack_require__(5),
+		testing: {
+			Requestor: __webpack_require__(11)
+		}
 	};
 
-/***/ },
+/***/ }),
 /* 2 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	module.exports = {
+		Feed: __webpack_require__(3),
+		Repo: __webpack_require__(8),
+		Storage: __webpack_require__(9)
+	};
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var bmoor = __webpack_require__(4),
+	    restful = __webpack_require__(5);
+
+	var Feed = function Feed(ops, settings) {
+		var _this = this,
+		    _arguments = arguments;
+
+		_classCallCheck(this, Feed);
+
+		// settings => inflate, deflate
+		if (!settings) {
+			settings = {};
+		}
+
+		if (bmoor.isString(ops.read)) {
+			ops.read = {
+				url: ops.read
+			};
+		}
+
+		if (bmoor.isString(ops.all)) {
+			ops.all = {
+				url: ops.all
+			};
+		}
+
+		if (bmoor.isString(ops.list)) {
+			ops.list = {
+				url: ops.list
+			};
+		}
+
+		if (bmoor.isString(ops.create)) {
+			ops.create = {
+				url: ops.create
+			};
+		}
+
+		if (bmoor.isString(ops.update)) {
+			ops.update = {
+				url: ops.update
+			};
+		}
+
+		// TODO : a way to have get use all and find by id?
+		if (settings.inflate) {
+			//ops.read
+			ops.read.success = function (res) {
+				return settings.inflate(res);
+			};
+
+			//ops.all
+			ops.all.success = function (res) {
+				var i,
+				    c,
+				    d = res;
+
+				for (i = 0, c = d.length; i < c; i++) {
+					d[i] = settings.inflate(d[i]);
+				}
+
+				return d;
+			};
+		}
+
+		//ops.list
+		if (settings.minimize) {
+			if (!ops.list) {
+				ops.list = {};
+			}
+
+			ops.list.intercept = function () {
+				return _this.all.apply(_this, _arguments).then(function (d) {
+					var i,
+					    c,
+					    rtn = [];
+
+					for (i = 0, c = d.length; i < c; i++) {
+						rtn.push(settings.minimize(d[i]));
+					}
+
+					return rtn;
+				});
+			};
+		}
+
+		if (!ops.list) {
+			this.list = function () {
+				return this.all.apply(this, arguments);
+			};
+		}
+
+		function encode(datum, args) {
+			var d = datum ? datum : args;
+
+			return settings.deflate ? settings.deflate(d) : d;
+		}
+
+		//ops.create
+		if (ops.create) {
+			ops.create.encode = encode;
+		}
+
+		//ops.update
+		if (ops.update) {
+			ops.update.encode = encode;
+		}
+
+		function prep(args) {
+			var t;
+
+			if (bmoor.isObject(args)) {
+				return args;
+			} else {
+				t = {};
+				t[settings.id] = args;
+
+				return t;
+			}
+		}
+
+		if (settings.id) {
+			if (ops.read) {
+				ops.read.prep = prep;
+			}
+
+			if (ops.update) {
+				ops.update.prep = prep;
+			}
+		}
+
+		restful(this, ops);
+	};
+
+	module.exports = Feed;
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports) {
+
+	module.exports = bmoor;
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var bmoor = __webpack_require__(4),
+	    Requestor = __webpack_require__(6);
+
+	module.exports = function (obj, definition) {
+		bmoor.iterate(definition, function (def, name) {
+			var req = new Requestor(def),
+			    fn = function restfulRequest(args, datum, settings) {
+				return req.go(args, datum, settings);
+			};
+
+			fn.$settings = def;
+
+			obj[name] = fn;
+		});
+	};
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -71,7 +259,8 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var bmoor = __webpack_require__(3);
+	var bmoor = __webpack_require__(4),
+	    Promise = __webpack_require__(7).Promise;
 
 	/*
 	settings :
@@ -105,8 +294,9 @@ var bmoorComm =
 	    deferred = {},
 	    defaultSettings = {
 		comm: {},
-		linger: 0,
-		headers: {}
+		linger: null,
+		headers: {},
+		method: 'GET'
 	};
 
 	var Requestor = function () {
@@ -124,14 +314,14 @@ var bmoorComm =
 
 		_createClass(Requestor, [{
 			key: 'go',
-			value: function go(args, settings) {
+			value: function go(args, datum, settings) {
 				var _this = this;
 
 				var ctx,
 				    reference,
 				    url = this.getSetting('url'),
+				    prep = this.getSetting('prep'),
 				    cached = this.getSetting('cached'),
-				    encode = this.getSetting('encode'),
 				    method = this.getSetting('method'),
 				    context = this.getSetting('context');
 
@@ -139,10 +329,14 @@ var bmoorComm =
 					settings = {};
 				}
 
-				if (encode) {
-					ctx = encode(args);
+				if (prep) {
+					ctx = Object.create(prep(args));
+					ctx.$args = args;
+				} else if (args) {
+					ctx = Object.create(args);
+					ctx.$args = args;
 				} else {
-					ctx = args;
+					ctx = { $args: {} };
 				}
 
 				// some helping functions
@@ -155,11 +349,17 @@ var bmoorComm =
 				};
 
 				ctx.$evalSetting = function (setting) {
-					setting = ctx.$getSetting(setting);
-					if (bmoor.isFunction(setting)) {
-						return setting.call(context, ctx);
+					var v = ctx.$getSetting(setting);
+
+					if (bmoor.isString(v) && setting === 'url') {
+						// allow all strings to be called via formatter
+						v = settings[setting] = bmoor.string.getFormatter(v.replace(/\}\}/g, '|url}}'));
+					}
+
+					if (bmoor.isFunction(v)) {
+						return v.call(context, ctx, datum);
 					} else {
-						return setting;
+						return v;
 					}
 				};
 
@@ -176,7 +376,7 @@ var bmoorComm =
 					} else if (deferred[reference]) {
 						return deferred[reference];
 					} else {
-						res = _this.response(_this.request(ctx), ctx);
+						res = _this.response(_this.request(ctx, datum), ctx);
 
 						deferred[reference] = res;
 
@@ -194,20 +394,24 @@ var bmoorComm =
 			}
 		}, {
 			key: 'request',
-			value: function request(ctx) {
+			value: function request(ctx, datum) {
 				var fetched,
 				    url = ctx.$evalSetting('url'),
 				    comm = ctx.$getSetting('comm'),
 				    code = ctx.$getSetting('code'),
-				    data = ctx.$evalSetting('data'),
-				    method = this.getSetting('method') || 'GET',
+				    method = this.getSetting('method'),
+				    encode = ctx.$getSetting('encode'),
 				    fetcher = this.getSetting('fetcher'),
 				    headers = ctx.$evalSetting('headers'),
 				    intercept = ctx.$getSetting('intercept');
 
+				if (encode) {
+					datum = encode(datum, ctx.$args);
+				}
+
 				if (intercept) {
 					if (bmoor.isFunction(intercept)) {
-						intercept = intercept(data, ctx);
+						intercept = intercept(datum, ctx);
 					}
 
 					// here we intercept the request, and respond back with a fetch like object
@@ -230,63 +434,76 @@ var bmoorComm =
 					}
 				} else {
 					fetched = fetcher(url, bmoor.object.extend({
-						'body': data,
+						'body': datum,
 						'method': method,
 						'headers': headers
 					}, comm));
 
-					return Promise.resolve(fetched).then(function (res) {
-						var error;
-
-						if (code) {
-							// we expect a particular http response status code
-							if (code === res.status) {
-								return res;
-							}
-						} else if (res.status >= 200 && res.status < 300) {
-							return res;
-						}
-
-						error = new Error(res.statusText);
-						error.response = res;
-
-						throw error;
-					});
+					return Promise.resolve(fetched);
 				}
 			}
 		}, {
 			key: 'response',
 			value: function response(q, ctx) {
-				var decode = ctx.$getSetting('decode'),
+				var t,
+				    response,
+				    decode = ctx.$getSetting('decode'),
 				    always = ctx.$getSetting('always'),
 				    success = ctx.$getSetting('success'),
 				    failure = ctx.$getSetting('failure'),
 				    context = ctx.$getSetting('context'),
 				    validation = ctx.$getSetting('validation');
 
-				return bmoor.promise.always(bmoor.promise.always(q, function () {
+				t = bmoor.promise.always(q, function () {
 					if (always) {
+						if (defaultSettings.always && always !== defaultSettings.always) {
+							defaultSettings.always.call(context, ctx);
+						}
+
 						always.call(context, ctx);
 					}
 				}).then(function (fetchedReponse) {
 					// we hava successful transmition
-					var res = decode ? decode(fetchedReponse) : fetchedReponse.json ? fetchedReponse.json() : fetchedReponse; // am I ok with this?
+					var res = decode ? decode(fetchedReponse) : fetchedReponse.json ? fetchedReponse.json() : fetchedReponse,
+					    code = ctx.$getSetting('code');
+
+					response = res;
 
 					if (validation) {
 						// invalid, throw Error
-						validation.call(context, res, ctx);
+						if (!validation.call(context, res, ctx)) {
+							throw new Error('Requestor::validation');
+						}
+					} else if (code && res.status !== code) {
+						throw new Error('Requestor::code');
+					} else if (res.status && (res.status < 200 || 299 < res.status)) {
+						throw new Error('Requestor::status');
 					}
 
 					if (success) {
+						if (defaultSettings.success && success !== defaultSettings.success) {
+							defaultSettings.success.call(context, res, ctx);
+						}
+
 						return success.call(context, res, ctx);
 					} else {
 						return res;
 					}
-				}), function (response) {
-					if (response instanceof Error) {
-						failure.call(context, ctx);
-					}
 				});
+
+				if (failure) {
+					t.catch(function (error) {
+						error.response = response;
+
+						failure.call(context, error, ctx);
+
+						if (defaultSettings.failure && failure !== defaultSettings.failure) {
+							defaultSettings.failure.call(context, error, ctx);
+						}
+					});
+				}
+
+				return t;
 			}
 		}, {
 			key: 'close',
@@ -314,45 +531,285 @@ var bmoorComm =
 
 	module.exports = Requestor;
 
-/***/ },
-/* 3 */
-/***/ function(module, exports) {
+/***/ }),
+/* 7 */
+/***/ (function(module, exports) {
 
-	module.exports = bmoor;
+	module.exports = ES6Promise;
 
-/***/ },
-/* 4 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ }),
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = __webpack_require__(3),
-	    Requestor = __webpack_require__(2);
+	module.exports = __webpack_require__(4).Memory.use('uhaul');
 
-	module.exports = function (obj, definition) {
-		bmoor.iterate(definition, function (def, name) {
-			var req = new Requestor(def),
-			    fn = function fn(args) {
-				return req.go(args);
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var bmoor = __webpack_require__(4),
+	    uhaul = __webpack_require__(8),
+	    Promise = __webpack_require__(7).Promise;
+
+	/*
+	function mimic( dis, feed, field ){
+		if ( feed && feed[field] ){
+			dis[field].$settings = feed[field].$settings;
+		}else{
+			dis[field].$settings = {};
+		}
+	}
+	*/
+
+	var Storage = function () {
+		function Storage(name, ops) {
+			var _this = this;
+
+			_classCallCheck(this, Storage);
+
+			var store,
+			    collection,
+			    settings = ops || {},
+			    id = settings.id || 'id',
+			    feed = settings.feed;
+
+			store = settings.session ? sessionStorage : localStorage;
+
+			this.id = id;
+			this.feed = feed;
+
+			this.$index = {};
+			this.$collection = settings.prepop || [];
+
+			uhaul.register(name, ops);
+
+			this.save = function () {
+				store.setItem(name, JSON.stringify(this.$collection));
 			};
 
-			fn.$settings = def;
+			collection = settings.clear ? null : store.getItem(name);
 
-			obj[name] = fn;
-		});
-	};
+			try {
+				if (collection) {
+					collection = JSON.parse(collection);
 
-/***/ },
-/* 5 */
-/***/ function(module, exports, __webpack_require__) {
+					collection.forEach(function (obj) {
+						_this.$index[obj[id]] = obj;
+						_this.$collection.push(obj);
+					});
+				}
+			} catch (ex) {
+				store.removeItem(name);
+			}
+
+			// let's try to mimic a Crud object a bit
+			/*
+	  mimic( this, feed, 'read' );
+	  mimic( this, feed, 'all' );
+	  mimic( this, feed, 'list' );
+	  mimic( this, feed, 'create' );
+	  mimic( this, feed, 'update' );
+	  mimic( this, feed, 'delete' );
+	  mimic( this, feed, 'search' );
+	  */
+		}
+
+		// return only one
+
+
+		_createClass(Storage, [{
+			key: 'read',
+			value: function read(qry) {
+				var _this2 = this;
+
+				var key;
+
+				return this.all().then(function () {
+					var t;
+
+					if (bmoor.isObject(qry)) {
+						key = qry[_this2.id];
+
+						if (!key) {
+							return _this2.search(qry).then(function (res) {
+								return res[0];
+							});
+						}
+					} else {
+						key = qry;
+					}
+
+					t = _this2.$index[key];
+
+					if (t) {
+						return t;
+					} else {
+						throw { error: 'Storage:read' };
+					}
+				});
+			}
+
+			// return an unedited list of all
+
+		}, {
+			key: 'all',
+			value: function all(qry) {
+				var _this3 = this;
+
+				if (!this.$collection.length && this.feed) {
+					return this.feed.all(qry).then(function (res) {
+						res.forEach(function (obj) {
+							_this3.$index[obj[_this3.id]] = obj;
+							_this3.$collection.push(obj);
+						});
+
+						return _this3.$collection;
+					});
+				} else {
+					return Promise.resolve(this.$collection);
+				}
+			}
+
+			// return possibly truncated list of all
+
+		}, {
+			key: 'list',
+			value: function list(qry) {
+				return this.all(qry);
+			}
+		}, {
+			key: '_create',
+			value: function _create(obj) {
+				this.$index[obj[this.id]] = obj;
+				this.$collection.push(obj);
+
+				this.save();
+
+				return obj;
+			}
+		}, {
+			key: 'create',
+			value: function create(obj) {
+				var id = Date.now() + '-' + this.$collection.length;
+
+				if (this.feed) {
+					return this.feed.create(obj).then(this._create.bind(this));
+				} else {
+					obj[this.id] = id;
+
+					return Promise.resolve(this._create(obj));
+				}
+			}
+		}, {
+			key: 'update',
+			value: function update(qry, obj) {
+				var _this4 = this;
+
+				var t;
+
+				if (this.feed) {
+					t = this.feed.update(qry, obj);
+				} else {
+					t = Promise.resolve('OK');
+				}
+
+				return t.then(function () {
+					if (obj) {
+						return _this4.read(qry).then(function (res) {
+							if (res) {
+								bmoor.object.extend(res, obj);
+							}
+
+							_this4.save();
+
+							return 'OK';
+						});
+					} else {
+						_this4.save();
+
+						return 'OK';
+					}
+				});
+			}
+		}, {
+			key: 'delete',
+			value: function _delete(qry) {
+				var _this5 = this;
+
+				var t,
+				    trg = this.read(qry);
+
+				if (this.feed) {
+					t = this.feed.delete(qry).then(function () {
+						return trg;
+					});
+				} else {
+					t = trg;
+				}
+
+				return t.then(function () {
+					bmoor.array.remove(_this5.$collection, trg);
+					_this5.$index[trg[_this5.id]] = undefined;
+
+					_this5.save();
+
+					return 'OK';
+				});
+			}
+
+			// expect array returned
+
+		}, {
+			key: 'search',
+			value: function search(qry) {
+				var rtn = [],
+				    keys = Object.keys(qry);
+
+				return this.all().then(function (res) {
+					res.forEach(function (obj) {
+						var miss = false;
+
+						keys.forEach(function (k) {
+							if (obj[k] !== qry[k]) {
+								miss = true;
+							}
+						});
+
+						if (!miss) {
+							rtn.push(obj);
+						}
+					});
+
+					return rtn;
+				});
+			}
+		}]);
+
+		return Storage;
+	}();
+
+	module.exports = Storage;
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = __webpack_require__(3);
+	var bmoor = __webpack_require__(4);
 
 	module.exports = function (obj, interceptions) {
 		var orig = {};
 
+		// copy original values to allow disable
 		bmoor.iterate(interceptions, function (intercept, name) {
 			var fn = obj[name];
 
@@ -383,5 +840,86 @@ var bmoorComm =
 		};
 	};
 
-/***/ }
+/***/ }),
+/* 11 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var Promise = __webpack_require__(7).Promise,
+	    Requestor = __webpack_require__(6);
+
+	var RequestorMock = function () {
+		function RequestorMock() {
+			_classCallCheck(this, RequestorMock);
+		}
+
+		_createClass(RequestorMock, [{
+			key: 'enable',
+			value: function enable() {
+				var _this = this;
+
+				this.callStack = [];
+
+				Requestor.clearCache();
+				Requestor.$settings.fetcher = function (url, ops) {
+					var t, p;
+
+					if (_this.callStack.length) {
+						t = _this.callStack.shift();
+
+						expect(t.url).toEqual(url);
+						if (t.params) {
+							expect(t.params).toEqual(ops.body);
+						}
+
+						p = Promise.resolve({
+							json: function json() {
+								return t.res || 'OK';
+							},
+							status: t.code || 200
+						});
+
+						return p;
+					} else {
+						expect('callStack.length').toBe('not zero');
+					}
+				};
+			}
+		}, {
+			key: 'expect',
+			value: function expect(url, params) {
+				var t = {
+					url: url,
+					params: params
+				};
+
+				this.callStack.push(t);
+
+				return {
+					respond: function respond(res, code) {
+						t.res = res;
+						t.code = code;
+					}
+				};
+			}
+		}, {
+			key: 'verifyWasFulfilled',
+			value: function verifyWasFulfilled() {
+				if (this.callStack.length) {
+					expect(this.callStack.length).toBe(0);
+				}
+			}
+		}]);
+
+		return RequestorMock;
+	}();
+
+	module.exports = RequestorMock;
+
+/***/ })
 /******/ ]);
