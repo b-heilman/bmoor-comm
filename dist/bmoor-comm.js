@@ -119,13 +119,15 @@ var bmoorComm =
 
 		if (bmoor.isString(ops.create)) {
 			ops.create = {
-				url: ops.create
+				url: ops.create,
+				method: 'POST'
 			};
 		}
 
 		if (bmoor.isString(ops.update)) {
 			ops.update = {
-				url: ops.update
+				url: ops.update,
+				method: 'PUT'
 			};
 		}
 
@@ -322,7 +324,7 @@ var bmoorComm =
 				    url = this.getSetting('url'),
 				    prep = this.getSetting('prep'),
 				    cached = this.getSetting('cached'),
-				    method = this.getSetting('method'),
+				    method = this.getSetting('method').toUpperCase(),
 				    context = this.getSetting('context');
 
 				if (!settings) {
@@ -378,7 +380,9 @@ var bmoorComm =
 					} else {
 						res = _this.response(_this.request(ctx, datum), ctx);
 
-						deferred[reference] = res;
+						if (method === 'GET') {
+							deferred[reference] = res;
+						}
 
 						if (settings.cached) {
 							cache[reference] = res;

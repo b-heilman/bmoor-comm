@@ -55,7 +55,7 @@ class Requestor {
 			url = this.getSetting('url'),
 			prep = this.getSetting('prep'),
 			cached = this.getSetting('cached'),
-			method = this.getSetting('method'),
+			method = this.getSetting('method').toUpperCase(),
 			context = this.getSetting('context');
 
 		if ( !settings ){
@@ -113,8 +113,10 @@ class Requestor {
 			}else{
 				res = this.response( this.request(ctx,datum), ctx );
 				
-				deferred[ reference ] = res;
-
+				if ( method === 'GET' ){
+					deferred[ reference ] = res;
+				}
+				
 				if ( settings.cached ){
 					cache[ reference ] = res;
 				}

@@ -28,13 +28,15 @@ class Feed {
 
 		if ( bmoor.isString(ops.create) ){
 			ops.create = {
-				url: ops.create
+				url: ops.create,
+				method: 'POST'
 			};
 		}
 
 		if ( bmoor.isString(ops.update) ){
 			ops.update = {
-				url: ops.update
+				url: ops.update,
+				method: 'PUT'
 			};
 		}
 
