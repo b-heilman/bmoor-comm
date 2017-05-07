@@ -310,4 +310,168 @@ describe('bmoor-comm::Requestor', function(){
 			done();
 		});
 	});
+
+	describe('events', function(){
+		var request,
+			response,
+			success,
+			failure,
+			subscription;
+
+		beforeEach(function(){
+			var pos = 1;
+
+			request = false;
+			response = false;
+			success = false;
+			failure = false;
+
+			subscription = bmoorComm.Requestor.events.subscribe({
+				request: function(){
+					request = pos;
+					pos += 1;
+				},
+				response: function(){
+					response = pos;
+					pos += 1;
+				},
+				success: function(){
+					success = pos;
+					pos += 1;
+				},
+				failure: function(){
+					failure = pos;
+					pos += 1;
+				}
+			});
+
+			bmoorComm.Requestor.clearCache();
+		});
+
+		afterEach(function(){
+			subscription();
+		});
+
+		it('should call events in order', function( done ){
+			var req = new bmoorComm.Requestor({
+					url: 'just/testing'
+				});
+
+			bmoorComm.Requestor.$settings.fetcher = function(){
+				return ES6Promise.resolve({
+					status: 200,
+					data: 'OK'
+				});
+			};
+
+			req.go().then(function(){
+				setTimeout(function(){
+					expect( request ).toBe( 1 );
+					expect( response ).toBe( 2 );
+					expect( success ).toBe( 3 );
+					expect( failure ).toBe( false );
+
+					done();
+				}, 10 );
+			});
+		});
+
+		it('should call events in order on failure', function( done ){
+			var req = new bmoorComm.Requestor({
+					url: 'just/testing'
+				});
+
+			bmoorComm.Requestor.$settings.fetcher = function(){
+				return ES6Promise.reject(
+					new Error( 'do not care' )
+				);
+			};
+
+			req.go().catch(function(){
+				setTimeout(function(){
+					expect( request ).toBe( 1 );
+					expect( response ).toBe( 2 );
+					expect( success ).toBe( false );
+					expect( failure ).toBe( 3 );
+
+					done();
+				}, 10 );
+			});
+		});
+
+		it('should call events in order on failure', function( done ){
+			var req = new bmoorComm.Requestor({
+					url: 'just/testing'
+				});
+
+			bmoorComm.Requestor.$settings.fetcher = function(){
+				return ES6Promise.reject(
+					new Error( 'do not care' )
+				);
+			};
+
+			req.go().catch(function(){
+				setTimeout(function(){
+					expect( request ).toBe( 1 );
+					expect( response ).toBe( 2 );
+					expect( success ).toBe( false );
+					expect( failure ).toBe( 3 );
+
+					done();
+				}, 10 );
+			});
+		});
+
+		it('should call events in order on success failure', function( done ){
+			var req = new bmoorComm.Requestor({
+					url: 'just/testing',
+					success: function(){
+						throw new Error('doop');
+					}
+				});
+
+			bmoorComm.Requestor.$settings.fetcher = function(){
+				return ES6Promise.reject(
+					new Error( 'do not care' )
+				);
+			};
+
+			req.go().catch(function(){
+				setTimeout(function(){
+					expect( request ).toBe( 1 );
+					expect( response ).toBe( 2 );
+					expect( success ).toBe( false );
+					expect( failure ).toBe( 3 );
+
+					done();
+				}, 10 );
+			});
+		});
+
+		it('should call events in order on always failure', function( done ){
+			var req = new bmoorComm.Requestor({
+					url: 'just/testing',
+					always: function(){
+						throw new Error('doop');
+					}
+				});
+
+			bmoorComm.Requestor.$settings.fetcher = function(){
+				return ES6Promise.reject(
+					new Error( 'do not care' )
+				);
+			};
+
+			req.go().catch(function(){
+				setTimeout(function(){
+					expect( request ).toBe( 1 );
+					expect( response ).toBe( 2 );
+					expect( success ).toBe( false );
+					expect( failure ).toBe( 3 );
+
+					done();
+				}, 10 );
+			});
+		});
+	});
 });

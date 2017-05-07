@@ -1,5 +1,6 @@
 var bmoor = require('bmoor'),
-	Promise = require('es6-promise').Promise;
+	Promise = require('es6-promise').Promise,
+	Eventing = bmoor.Eventing;
 
 /*
 settings :
@@ -30,6 +31,7 @@ settings :
 */
 
 var cache = {},
+	events = new Eventing(),
 	deferred = {},
 	defaultSettings = {
 		comm : {},
@@ -143,6 +145,8 @@ class Requestor {
 			datum = encode( datum, ctx.$args );
 		}
 
+		events.trigger( 'request', url, datum );
+
 		if ( intercept ) {
 			if ( bmoor.isFunction(intercept) ){
 				intercept = intercept( datum, ctx );
@@ -196,15 +200,9 @@ class Requestor {
 		t = bmoor.promise.always(
 			q,
 			function(){
-				if ( always ){
-					if ( defaultSettings.always &&
-						always !== defaultSettings.always
-					){
-						defaultSettings.always.call(
-							context, ctx
-						);
-					}
+				events.trigger( 'response' );
 
+				if ( always ){
 					always.call( context, ctx );
 				}
 			}
@@ -231,36 +229,24 @@ class Requestor {
 				throw new Error('Requestor::status');
 			}
 
-			if ( success ){
-				if ( defaultSettings.success &&
-					success !== defaultSettings.success
-				){
-					defaultSettings.success.call(
-						context, res, ctx
-					);
-				}
-
-				return success.call( context, res, ctx );
-			}else{
-				return res;
-			}
+			return ( success ) ?
+				success.call( context, res, ctx ) : res;
 		});
 
-		if ( failure ){
-			t.catch(function( error ){
-				error.response = response;
+		t.then(
+			function( res ){
+				events.trigger( 'success', res, response );
+			},
+			function( error ){
+				events.trigger( 'failure', error, response );
 
-				failure.call( context, error, ctx );
+				if ( failure ){
+					error.response = response;
 
-				if ( defaultSettings.failure &&
-					failure !== defaultSettings.failure 
-				){
-					defaultSettings.failure.call( 
-						context, error, ctx
-					);
+					failure.call( context, error, ctx );
 				}
-			});
-		}
+			}
+		);
 
 		return t;
 	}
@@ -279,6 +265,7 @@ class Requestor {
 }
 
 Requestor.$settings = defaultSettings;
+Requestor.events = events;
 Requestor.clearCache = function(){
 	cache = {};
 	deferred = {};

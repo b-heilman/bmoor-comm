@@ -9,7 +9,8 @@ describe('bmoor-comm::connect/Feed', function(){
 					all: '/test/all/{{foDis}}',
 					read: '/test/{{id}}',
 					create: '/test/create',
-					update: '/test/update/{{id}}'
+					update: '/test/update/{{id}}',
+					search: '/test/search'
 				}
 			);
 
@@ -68,6 +69,16 @@ describe('bmoor-comm::connect/Feed', function(){
 			content = {};
 
 			http.update( {id:1}, content ).then(function( res ){
+				expect( res ).toBe( 'OK' );
+				done();
+			});
+		});
+
+		it('should properly define http.search', function( done ){
+			httpMock.expect('/test/search?query={"id":1,"foo":{"bar":"OK"}}').respond('OK');
+			content = {};
+
+			http.search( {id:1, foo:{bar:'OK'}} ).then(function( res ){
 				expect( res ).toBe( 'OK' );
 				done();
 			});

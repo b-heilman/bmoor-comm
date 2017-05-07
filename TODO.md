@@ -1,7 +1,3 @@
-- Use fetch library for http communication in node and browser
-
-- Global Requestor error handler
-
 - Way to more abstractly pass data from request method
   - args : method to decode arguments to hash object
   - url : method to build url
@@ -25,6 +21,3 @@
   }
 }
 
-* Flesh out the intercepter so I can direct a storage.Remote to storage.Local
-* add massage functionality to Remote and Local
-* externalize the functions of remote so options can be edited if needed

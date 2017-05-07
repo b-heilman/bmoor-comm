@@ -90,6 +90,22 @@ var bmoorComm =
 	var bmoor = __webpack_require__(4),
 	    restful = __webpack_require__(18);
 
+	function searchEncode(args) {
+		Object.keys(args).forEach(function (key) {
+			var t = args[key];
+
+			if (bmoor.isString(t)) {
+				args[key] = encodeURIComponent(t);
+			} else if (bmoor.isObject(t)) {
+				searchEncode(t);
+			} else {
+				args[key] = t;
+			}
+		});
+
+		return args;
+	}
+
 	var Feed = function Feed(ops, settings) {
 		var _this = this,
 		    _arguments = arguments;
@@ -131,6 +147,17 @@ var bmoorComm =
 				url: ops.update,
 				method: 'PUT'
 			};
+		}
+
+		if (bmoor.isString(ops.search)) {
+			(function (base) {
+				ops.search = {
+					url: function url(ctx) {
+						return base + '?query=' + JSON.stringify(searchEncode(ctx.$args));
+					},
+					method: 'GET'
+				};
+			})(ops.search);
 		}
 
 		// TODO : a way to have get use all and find by id?
@@ -2116,7 +2143,8 @@ var bmoorComm =
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var bmoor = __webpack_require__(4),
-	    Promise = __webpack_require__(20).Promise;
+	    Promise = __webpack_require__(20).Promise,
+	    Eventing = bmoor.Eventing;
 
 	/*
 	settings :
@@ -2147,6 +2175,7 @@ var bmoorComm =
 	*/
 
 	var cache = {},
+	    events = new Eventing(),
 	    deferred = {},
 	    defaultSettings = {
 		comm: {},
@@ -2267,6 +2296,8 @@ var bmoorComm =
 					datum = encode(datum, ctx.$args);
 				}
 
+				events.trigger('request', url, datum);
+
 				if (intercept) {
 					if (bmoor.isFunction(intercept)) {
 						intercept = intercept(datum, ctx);
@@ -2313,11 +2344,9 @@ var bmoorComm =
 				    validation = ctx.$getSetting('validation');
 
 				t = bmoor.promise.always(q, function () {
-					if (always) {
-						if (defaultSettings.always && always !== defaultSettings.always) {
-							defaultSettings.always.call(context, ctx);
-						}
+					events.trigger('response');
 
+					if (always) {
 						always.call(context, ctx);
 					}
 				}).then(function (fetchedReponse) {
@@ -2338,28 +2367,20 @@ var bmoorComm =
 						throw new Error('Requestor::status');
 					}
 
-					if (success) {
-						if (defaultSettings.success && success !== defaultSettings.success) {
-							defaultSettings.success.call(context, res, ctx);
-						}
-
-						return success.call(context, res, ctx);
-					} else {
-						return res;
-					}
+					return success ? success.call(context, res, ctx) : res;
 				});
 
-				if (failure) {
-					t.catch(function (error) {
+				t.then(function (res) {
+					events.trigger('success', res, response);
+				}, function (error) {
+					events.trigger('failure', error, response);
+
+					if (failure) {
 						error.response = response;
 
 						failure.call(context, error, ctx);
-
-						if (defaultSettings.failure && failure !== defaultSettings.failure) {
-							defaultSettings.failure.call(context, error, ctx);
-						}
-					});
-				}
+					}
+				});
 
 				return t;
 			}
@@ -2382,6 +2403,7 @@ var bmoorComm =
 	}();
 
 	Requestor.$settings = defaultSettings;
+	Requestor.events = events;
 	Requestor.clearCache = function () {
 		cache = {};
 		deferred = {};

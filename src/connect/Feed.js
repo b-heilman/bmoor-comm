@@ -1,6 +1,22 @@
 var bmoor = require('bmoor'),
 	restful = require('../restful.js');
 
+function searchEncode( args ){
+	Object.keys( args ).forEach(function( key ){
+		var t = args[key];
+
+		if ( bmoor.isString(t) ){
+			args[key] = encodeURIComponent( t );
+		}else if ( bmoor.isObject(t) ){
+			searchEncode( t );
+		}else{
+			args[key] = t;
+		}
+	});
+
+	return args;
+}
+
 class Feed {
 	constructor( ops, settings ){
 		// settings => inflate, deflate
@@ -38,6 +54,20 @@ class Feed {
 				url: ops.update,
 				method: 'PUT'
 			};
+		}
+
+		if ( bmoor.isString(ops.search) ){
+			(function( base ){
+				ops.search = {
+					url: function( ctx ){
+						return base + '?query=' + 
+							JSON.stringify( 
+								searchEncode( ctx.$args ) 
+							);
+					},
+					method: 'GET'
+				};
+			}( ops.search ));
 		}
 
 		// TODO : a way to have get use all and find by id?
