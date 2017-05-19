@@ -8,6 +8,8 @@ var $ = require('gulp-load-plugins')(),
 
 var env = require('./config/env.js');
 
+var server;
+
 gulp.task('demo', function() {
 	return gulp.src(env.jsSrc)
 		.pipe(webpack({
@@ -53,15 +55,28 @@ gulp.task('library', function() {
 		.pipe(gulp.dest(env.distDir));
 });
 
-gulp.task('test', ['build'], function() {
-	return gulp.src('aaa')
-			.pipe(karma({
-					configFile: env.karmaConfig,
-					action: 'run'
-			}))
-			.on('error', function(err) {
-					throw err;
-			});
+gulp.task('test-server', function(){
+	server = require('./test/server.js');
+
+	return server.start( 10001 );
+});
+
+gulp.task('test', ['build','test-server'], function( done ) {
+	var t = gulp.src('aaa')
+		.pipe(karma({
+			configFile: env.karmaConfig,
+			action: 'run'
+		}));
+
+	t.on('error', function(err) {
+		throw err;
+	});
+
+	t.on('close',function(){
+		server.close();
+	});
+
+	return t;
 });
 
 var failOnError = function() {
@@ -92,7 +107,7 @@ gulp.task('watch', ['build'], function(){
 	gulp.watch(env.jsSrc.concat(['./'+env.demoConfig]), ['lint', 'demo','library']);
 });
 
-gulp.task('serve', ['watch'], function() {
+gulp.task('serve', ['watch','test-server'], function() {
 	gulp.src(env.demoDir)
 		.pipe($.webserver({
 			port: 9000,
@@ -102,3 +117,4 @@ gulp.task('serve', ['watch'], function() {
 			open: true
 		}))
 });
+

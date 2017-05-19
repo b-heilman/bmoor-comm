@@ -47,9 +47,49 @@ var bmoorComm =
 
 	'use strict';
 
-	var bmoor = __webpack_require__(1);
+	var comm,
+	    bmoorComm = __webpack_require__(1),
+	    Feed = bmoorComm.connect.Feed,
+	    Requestor = bmoorComm.Requestor;
 
-	module.exports = bmoor;
+	Requestor.$settings.fetcher = function (url, options) {
+		console.log(url, options);
+		return fetch(url, options);
+	};
+
+	comm = new Feed({
+		all: 'http://localhost:10001/test',
+		create: 'http://localhost:10001/test-json',
+		update: {
+			url: 'http://localhost:10001/test-form/{{id}}',
+			method: 'POST'
+		},
+		read: 'http://localhost:10001/test/{{id}}'
+	});
+
+	comm.all().then(function (res) {
+		console.log('success', res);
+	}, function (err) {
+		console.log('fail', err);
+	});
+
+	comm.create({ 'foo': 'bar' }).then(function (res) {
+		console.log('success', res);
+	}, function (err) {
+		console.log('fail', err);
+	});
+
+	var f = new FormData();
+
+	f.set('hello', 'world');
+
+	comm.update({ id: 1 }, f).then(function (res) {
+		console.log('success', res);
+	}, function (err) {
+		console.log('fail', err);
+	});
+
+	module.exports = bmoorComm;
 
 /***/ }),
 /* 1 */
@@ -2282,7 +2322,8 @@ var bmoorComm =
 		}, {
 			key: 'request',
 			value: function request(ctx, datum) {
-				var fetched,
+				var req,
+				    fetched,
 				    url = ctx.$evalSetting('url'),
 				    comm = ctx.$getSetting('comm'),
 				    code = ctx.$getSetting('code'),
@@ -2322,11 +2363,24 @@ var bmoorComm =
 						});
 					}
 				} else {
-					fetched = fetcher(url, bmoor.object.extend({
-						'body': datum,
+					req = bmoor.object.extend({
 						'method': method,
-						'headers': headers
-					}, comm));
+						'headers': bmoor.object.extend({}, headers)
+					}, comm);
+
+					if (datum) {
+						if (datum instanceof FormData) {
+							req.body = datum;
+							delete req.headers['content-type'];
+						} else {
+							req.body = JSON.stringify(datum);
+							if (!req.headers['content-type']) {
+								req.headers['content-type'] = 'application/json';
+							}
+						}
+					}
+
+					fetched = fetcher(url, req);
 
 					return Promise.resolve(fetched);
 				}

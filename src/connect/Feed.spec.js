@@ -216,7 +216,9 @@ describe('bmoor-comm::connect/Feed', function(){
 			bmoorComm.Requestor.clearCache();
 			bmoorComm.Requestor.$settings.fetcher = function( url, obj ){
 				expect( url ).toEqual( requestUrl );
-				expect( obj.body ).toEqual( requestObj );
+				expect( obj.body ).toEqual( 
+					JSON.stringify(requestObj)
+				);
 
 				return ES6Promise.resolve({
 					json: function(){
@@ -249,6 +251,73 @@ describe('bmoor-comm::connect/Feed', function(){
 				expect( res ).toBe( 'OK' );
 				done();
 			});
+		});
+	});
+
+	describe('working with live server',function(){
+		var comm;
+
+		beforeEach(function(){
+			bmoorComm.Requestor.clearCache();
+			bmoorComm.Requestor.$settings.fetcher = function( url, obj ){
+				return fetch( url, obj );
+			};
+
+			comm = new Feed({
+				all: 'http://localhost:10001/test',
+				create: 'http://localhost:10001/test-json',
+				update: {
+					url: 'http://localhost:10001/test-form/{{id}}',
+					method: 'POST'
+				},
+				read: 'http://localhost:10001/test/{{id}}'
+			});
+		});
+
+		it('should be able to get all', function( done ){
+			comm.all().then(
+				function( res ){
+					expect( res ).toEqual( [] );
+					done();
+				},
+				function( err ){
+					console.log( 'fail', err.message, err );
+				}
+			);
+		});
+
+		it('should be able to create with json', function( done ){
+			var t = {'foo':'bar'};
+
+			comm.create( t ).then(
+				function( res ){
+					expect( res.id ).toBeDefined();
+					expect( res.$sanity ).toEqual( t );
+
+					done();
+				},
+				function( err ){
+					console.log( 'fail', err.message, err );
+				}
+			);
+		});
+
+		it('should be able to create with FormData', function( done ){
+			var t = new FormData();
+
+			t.set('foo','bar');
+
+			comm.update( {id:1},t ).then(
+				function( res ){
+					expect( res.id ).toBeDefined();
+					expect( res.$sanity ).toEqual( {'foo':'bar'} );
+
+					done();
+				},
+				function( err ){
+					console.log( 'fail', err.message, err );
+				}
+			);
 		});
 	});
 });

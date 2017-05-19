@@ -428,7 +428,8 @@ var bmoorComm =
 		}, {
 			key: 'request',
 			value: function request(ctx, datum) {
-				var fetched,
+				var req,
+				    fetched,
 				    url = ctx.$evalSetting('url'),
 				    comm = ctx.$getSetting('comm'),
 				    code = ctx.$getSetting('code'),
@@ -468,11 +469,24 @@ var bmoorComm =
 						});
 					}
 				} else {
-					fetched = fetcher(url, bmoor.object.extend({
-						'body': datum,
+					req = bmoor.object.extend({
 						'method': method,
-						'headers': headers
-					}, comm));
+						'headers': bmoor.object.extend({}, headers)
+					}, comm);
+
+					if (datum) {
+						if (datum instanceof FormData) {
+							req.body = datum;
+							delete req.headers['content-type'];
+						} else {
+							req.body = JSON.stringify(datum);
+							if (!req.headers['content-type']) {
+								req.headers['content-type'] = 'application/json';
+							}
+						}
+					}
+
+					fetched = fetcher(url, req);
 
 					return Promise.resolve(fetched);
 				}

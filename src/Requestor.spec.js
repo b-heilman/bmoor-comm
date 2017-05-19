@@ -23,9 +23,14 @@ describe('bmoor-comm::Requestor', function(){
 			fetched = true;
 
 			expect( url ).toBe( getUrl );
-			expect( ops.body ).toEqual( {content:true} );
+			expect( ops.body ).toEqual( 
+				JSON.stringify({content:true}) 
+			);
 			expect( ops.method ).toBe( 'GET' );
-			expect( ops.headers ).toEqual( {foo:'bar'} );
+			expect( ops.headers ).toEqual({
+				foo:'bar',
+				'content-type': 'application/json'
+			});
 
 			return ES6Promise.resolve({
 				json: function(){
@@ -123,9 +128,14 @@ describe('bmoor-comm::Requestor', function(){
 			fetched = true;
 
 			expect( url ).toBe( getUrl );
-			expect( ops.body ).toEqual( {content:true} );
+			expect( ops.body ).toEqual(
+				JSON.stringify({content:true})
+			);
 			expect( ops.method ).toBe( 'GET' );
-			expect( ops.headers ).toEqual( {foo:'bar'} );
+			expect( ops.headers ).toEqual({
+				foo:'bar',
+				'content-type': 'application/json'
+			});
 
 			return ES6Promise.resolve({
 				json: function(){
@@ -265,7 +275,7 @@ describe('bmoor-comm::Requestor', function(){
 
 		bmoorComm.Requestor.clearCache();
 		bmoorComm.Requestor.$settings.fetcher = function( url, other ){
-			expect( other.body ).toBe( sample );
+			expect( other.body ).toBe( JSON.stringify(sample) );
 
 			return ES6Promise.reject( new Error('test error') );
 		};
