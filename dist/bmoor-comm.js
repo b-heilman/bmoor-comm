@@ -43,15 +43,15 @@ var bmoorComm =
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	module.exports = __webpack_require__(1);
 
-/***/ }),
+/***/ },
 /* 1 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -65,9 +65,9 @@ var bmoorComm =
 		}
 	};
 
-/***/ }),
+/***/ },
 /* 2 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -77,9 +77,9 @@ var bmoorComm =
 		Storage: __webpack_require__(9)
 	};
 
-/***/ }),
+/***/ },
 /* 3 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -148,14 +148,17 @@ var bmoorComm =
 		}
 
 		if (bmoor.isString(ops.search)) {
-			(function (base) {
-				ops.search = {
-					url: function url(ctx) {
-						return base + '?query=' + JSON.stringify(searchEncode(ctx.$args));
-					},
-					method: 'GET'
-				};
-			})(ops.search);
+			ops.search = {
+				url: ops.search,
+				method: 'GET'
+			};
+		} else if (bmoor.isString(ops.query)) {
+			ops.search = {
+				url: function url(ctx) {
+					return ops.query + '?query=' + JSON.stringify(searchEncode(ctx.$args));
+				},
+				method: 'GET'
+			};
 		}
 
 		// TODO : a way to have get use all and find by id?
@@ -250,15 +253,15 @@ var bmoorComm =
 
 	module.exports = Feed;
 
-/***/ }),
+/***/ },
 /* 4 */
-/***/ (function(module, exports) {
+/***/ function(module, exports) {
 
 	module.exports = bmoor;
 
-/***/ }),
+/***/ },
 /* 5 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -278,9 +281,9 @@ var bmoorComm =
 		});
 	};
 
-/***/ }),
+/***/ },
 /* 6 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -571,23 +574,23 @@ var bmoorComm =
 
 	module.exports = Requestor;
 
-/***/ }),
+/***/ },
 /* 7 */
-/***/ (function(module, exports) {
+/***/ function(module, exports) {
 
 	module.exports = ES6Promise;
 
-/***/ }),
+/***/ },
 /* 8 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	module.exports = __webpack_require__(4).Memory.use('uhaul');
 
-/***/ }),
+/***/ },
 /* 9 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -838,9 +841,9 @@ var bmoorComm =
 
 	module.exports = Storage;
 
-/***/ }),
+/***/ },
 /* 10 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -880,9 +883,9 @@ var bmoorComm =
 		};
 	};
 
-/***/ }),
+/***/ },
 /* 11 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -961,5 +964,5 @@ var bmoorComm =
 
 	module.exports = RequestorMock;
 
-/***/ })
+/***/ }
 /******/ ]);

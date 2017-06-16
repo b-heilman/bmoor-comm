@@ -57,17 +57,20 @@ class Feed {
 		}
 
 		if ( bmoor.isString(ops.search) ){
-			(function( base ){
-				ops.search = {
-					url: function( ctx ){
-						return base + '?query=' + 
-							JSON.stringify( 
-								searchEncode( ctx.$args ) 
-							);
-					},
-					method: 'GET'
-				};
-			}( ops.search ));
+			ops.search = {
+				url: ops.search,
+				method: 'GET'
+			};
+		}else if ( bmoor.isString(ops.query) ){
+			ops.search = {
+				url: function( ctx ){
+					return ops.query + '?query=' + 
+						JSON.stringify( 
+							searchEncode( ctx.$args ) 
+						);
+				},
+				method: 'GET'
+			};
 		}
 
 		// TODO : a way to have get use all and find by id?

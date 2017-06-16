@@ -1,6 +1,6 @@
 {
   "name": "bmoor-comm",
-  "version": "0.3.3",
+  "version": "0.3.5",
   "author": "Brian Heilman <das.ist.junk@gmail.com>",
   "description": "A way for bmoor to get around town",
   "license": "MIT",
@@ -14,7 +14,7 @@
     "build": "gulp build"
   },
   "dependencies": {
-    "bmoor": "0.3.26",
+    "bmoor": "0.3.27",
     "es6-promise": "4.1.0"
   },
   "devDependencies": {

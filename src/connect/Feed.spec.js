@@ -10,7 +10,7 @@ describe('bmoor-comm::connect/Feed', function(){
 					read: '/test/{{id}}',
 					create: '/test/create',
 					update: '/test/update/{{id}}',
-					search: '/test/search'
+					query: '/test/search'
 				}
 			);
 

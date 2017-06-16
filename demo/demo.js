@@ -43,7 +43,7 @@ var bmoorComm =
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -91,9 +91,9 @@ var bmoorComm =
 
 	module.exports = bmoorComm;
 
-/***/ }),
+/***/ },
 /* 1 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -107,9 +107,9 @@ var bmoorComm =
 		}
 	};
 
-/***/ }),
+/***/ },
 /* 2 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -119,9 +119,9 @@ var bmoorComm =
 		Storage: __webpack_require__(24)
 	};
 
-/***/ }),
+/***/ },
 /* 3 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -190,14 +190,17 @@ var bmoorComm =
 		}
 
 		if (bmoor.isString(ops.search)) {
-			(function (base) {
-				ops.search = {
-					url: function url(ctx) {
-						return base + '?query=' + JSON.stringify(searchEncode(ctx.$args));
-					},
-					method: 'GET'
-				};
-			})(ops.search);
+			ops.search = {
+				url: ops.search,
+				method: 'GET'
+			};
+		} else if (bmoor.isString(ops.query)) {
+			ops.search = {
+				url: function url(ctx) {
+					return ops.query + '?query=' + JSON.stringify(searchEncode(ctx.$args));
+				},
+				method: 'GET'
+			};
 		}
 
 		// TODO : a way to have get use all and find by id?
@@ -292,9 +295,9 @@ var bmoorComm =
 
 	module.exports = Feed;
 
-/***/ }),
+/***/ },
 /* 4 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -313,9 +316,9 @@ var bmoorComm =
 
 	module.exports = bmoor;
 
-/***/ }),
+/***/ },
 /* 5 */
-/***/ (function(module, exports) {
+/***/ function(module, exports) {
 
 	'use strict';
 
@@ -482,7 +485,6 @@ var bmoorComm =
 	function set(root, space, value) {
 		var i,
 		    c,
-		    old,
 		    val,
 		    nextSpace,
 		    curSpace = root;
@@ -501,10 +503,9 @@ var bmoorComm =
 			curSpace = curSpace[nextSpace];
 		}
 
-		old = curSpace[val];
 		curSpace[val] = value;
 
-		return old;
+		return curSpace;
 	}
 
 	function _makeSetter(property, next) {
@@ -520,9 +521,8 @@ var bmoorComm =
 			};
 		} else {
 			return function (ctx, value) {
-				var t = ctx[property];
 				ctx[property] = value;
-				return t;
+				return ctx;
 			};
 		}
 	}
@@ -773,9 +773,9 @@ var bmoorComm =
 		naked: naked
 	};
 
-/***/ }),
+/***/ },
 /* 6 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -1073,9 +1073,9 @@ var bmoorComm =
 		bringForward: bringForward
 	};
 
-/***/ }),
+/***/ },
 /* 7 */
-/***/ (function(module, exports) {
+/***/ function(module, exports) {
 
 	"use strict";
 
@@ -1113,9 +1113,9 @@ var bmoorComm =
 		getUid: getUid
 	};
 
-/***/ }),
+/***/ },
 /* 8 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -1365,9 +1365,9 @@ var bmoorComm =
 		compare: compare
 	};
 
-/***/ }),
+/***/ },
 /* 9 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -1428,9 +1428,9 @@ var bmoorComm =
 
 	module.exports = maker;
 
-/***/ }),
+/***/ },
 /* 10 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -1442,9 +1442,9 @@ var bmoorComm =
 		});
 	};
 
-/***/ }),
+/***/ },
 /* 11 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -1498,9 +1498,9 @@ var bmoorComm =
 		});
 	};
 
-/***/ }),
+/***/ },
 /* 12 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -1543,9 +1543,9 @@ var bmoorComm =
 		});
 	};
 
-/***/ }),
+/***/ },
 /* 13 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -1795,9 +1795,9 @@ var bmoorComm =
 		equals: equals
 	};
 
-/***/ }),
+/***/ },
 /* 14 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -1992,9 +1992,9 @@ var bmoorComm =
 		getFormatter: getFormatter
 	};
 
-/***/ }),
+/***/ },
 /* 15 */
-/***/ (function(module, exports) {
+/***/ function(module, exports) {
 
 	"use strict";
 
@@ -2007,9 +2007,9 @@ var bmoorComm =
 		always: always
 	};
 
-/***/ }),
+/***/ },
 /* 16 */
-/***/ (function(module, exports) {
+/***/ function(module, exports) {
 
 	'use strict';
 
@@ -2052,9 +2052,9 @@ var bmoorComm =
 		}
 	};
 
-/***/ }),
+/***/ },
 /* 17 */
-/***/ (function(module, exports) {
+/***/ function(module, exports) {
 
 	"use strict";
 
@@ -2072,17 +2072,41 @@ var bmoorComm =
 		_createClass(Eventing, [{
 			key: "on",
 			value: function on(event, cb) {
-				var dis = this;
+				var listeners;
 
 				if (!this._listeners[event]) {
 					this._listeners[event] = [];
 				}
 
-				this._listeners[event].push(cb);
+				listeners = this._listeners[event];
+
+				listeners.push(cb);
 
 				return function clear$on() {
-					dis._listeners[event].splice(dis._listeners[event].indexOf(cb), 1);
+					listeners.splice(listeners.indexOf(cb), 1);
 				};
+			}
+		}, {
+			key: "once",
+			value: function once(event, cb) {
+				var clear,
+				    fn = function fn() {
+					cb.apply(this, arguments);
+					clear();
+				};
+
+				clear = this.on(event, fn);
+
+				return clear;
+			}
+		}, {
+			key: "next",
+			value: function next(event, cb) {
+				if (this._triggering && this._triggering[event]) {
+					this.once(event, cb);
+				} else {
+					cb();
+				}
 			}
 		}, {
 			key: "subscribe",
@@ -2113,6 +2137,7 @@ var bmoorComm =
 				if (this.hasWaiting(event)) {
 					if (!this._triggering) {
 						this._triggering = {};
+
 						// I want to do this to enforce more async / promise style
 						setTimeout(function () {
 							var events = _this._triggering;
@@ -2122,16 +2147,10 @@ var bmoorComm =
 							Object.keys(events).forEach(function (event) {
 								var vars = events[event];
 
-								_this._listeners[event].forEach(function (cb) {
+								_this._listeners[event].slice(0).forEach(function (cb) {
 									cb.apply(_this, vars);
 								});
 							});
-
-							if (!_this._triggering && _this._listeners.stable) {
-								_this._listeners.stable.forEach(function (cb) {
-									cb.apply(_this);
-								});
-							}
 						}, 0);
 					}
 
@@ -2150,9 +2169,9 @@ var bmoorComm =
 
 	module.exports = Eventing;
 
-/***/ }),
+/***/ },
 /* 18 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -2172,9 +2191,9 @@ var bmoorComm =
 		});
 	};
 
-/***/ }),
+/***/ },
 /* 19 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -2465,9 +2484,9 @@ var bmoorComm =
 
 	module.exports = Requestor;
 
-/***/ }),
+/***/ },
 /* 20 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;var require;/* WEBPACK VAR INJECTION */(function(process, global) {'use strict';
 
@@ -3631,9 +3650,9 @@ var bmoorComm =
 	//# sourceMappingURL=es6-promise.map
 	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(21), (function() { return this; }())))
 
-/***/ }),
+/***/ },
 /* 21 */
-/***/ (function(module, exports) {
+/***/ function(module, exports) {
 
 	'use strict';
 
@@ -3823,23 +3842,23 @@ var bmoorComm =
 	    return 0;
 	};
 
-/***/ }),
+/***/ },
 /* 22 */
-/***/ (function(module, exports) {
+/***/ function(module, exports) {
 
 	/* (ignored) */
 
-/***/ }),
+/***/ },
 /* 23 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	module.exports = __webpack_require__(4).Memory.use('uhaul');
 
-/***/ }),
+/***/ },
 /* 24 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -4090,9 +4109,9 @@ var bmoorComm =
 
 	module.exports = Storage;
 
-/***/ }),
+/***/ },
 /* 25 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -4132,9 +4151,9 @@ var bmoorComm =
 		};
 	};
 
-/***/ }),
+/***/ },
 /* 26 */
-/***/ (function(module, exports, __webpack_require__) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -4213,5 +4232,5 @@ var bmoorComm =
 
 	module.exports = RequestorMock;
 
-/***/ })
+/***/ }
 /******/ ]);
