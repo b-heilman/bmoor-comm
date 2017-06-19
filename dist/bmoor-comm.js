@@ -518,21 +518,21 @@ var bmoorComm =
 					if (always) {
 						always.call(context, ctx);
 					}
-				}).then(function (fetchedReponse) {
+				}).then(function (fetched) {
 					// we hava successful transmition
-					var res = decode ? decode(fetchedReponse) : fetchedReponse.json ? fetchedReponse.json() : fetchedReponse,
+					var res = decode ? decode(fetched) : fetched.json ? fetched.json() : fetched,
 					    code = ctx.$getSetting('code');
 
 					response = res;
 
 					if (validation) {
 						// invalid, throw Error
-						if (!validation.call(context, res, ctx)) {
+						if (!validation.call(context, res, ctx, fetched)) {
 							throw new Error('Requestor::validation');
 						}
-					} else if (code && res.status !== code) {
+					} else if (code && fetched.status !== code) {
 						throw new Error('Requestor::code');
-					} else if (res.status && (res.status < 200 || 299 < res.status)) {
+					} else if (fetched.status && (fetched.status < 200 || 299 < fetched.status)) {
 						throw new Error('Requestor::status');
 					}
 
