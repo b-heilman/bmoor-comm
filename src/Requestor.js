@@ -158,7 +158,7 @@ class Requestor {
 				return intercept.then(function( v ){
 					return {
 						json: function(){
-							return v;
+							return Promise.resolve(v);
 						},
 						status : code || 200
 					};
@@ -166,7 +166,7 @@ class Requestor {
 			}else{
 				return Promise.resolve({
 					json: function(){
-						return intercept;
+						return Promise.resolve(intercept);
 					},
 					status : code || 200
 				});
@@ -216,7 +216,7 @@ class Requestor {
 			}
 		).then(function( fetched ){
 			// we hava successful transmition
-			var res,
+			var req,
 				code = ctx.$getSetting('code');
 
 			response = fetched;
@@ -229,17 +229,24 @@ class Requestor {
 				throw new Error('Requestor::status');
 			}
 
-			res = decode ? decode( fetched ) : 
-				( fetched.json ? fetched.json() : fetched );
+			if ( decode ){
+				req = decode(fetched);
+			}else if ( fetched.json ){
+				req = fetched.json();
+			}else{
+				req = fetched;
+			}
 
-			if ( validation ){ // invalid, throw Error
-				if ( !validation.call(context,res,ctx,fetched) ){
+			return Promise.resolve(req).then(function( res ){
+				if ( validation && 
+					!validation.call(context,res,ctx,fetched)
+				){
 					throw new Error('Requestor::validation');
-				}
-			} 
-
-			return ( success ) ?
-				success.call( context, res, ctx ) : res;
+				} 
+				
+				return success ?
+					success.call( context, res, ctx ) : res;
+			});
 		});
 
 		t.then(

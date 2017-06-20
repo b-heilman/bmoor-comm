@@ -2374,7 +2374,7 @@ var bmoorComm =
 						return intercept.then(function (v) {
 							return {
 								json: function json() {
-									return v;
+									return Promise.resolve(v);
 								},
 								status: code || 200
 							};
@@ -2382,7 +2382,7 @@ var bmoorComm =
 					} else {
 						return Promise.resolve({
 							json: function json() {
-								return intercept;
+								return Promise.resolve(intercept);
 							},
 							status: code || 200
 						});
@@ -2430,7 +2430,7 @@ var bmoorComm =
 					}
 				}).then(function (fetched) {
 					// we hava successful transmition
-					var res,
+					var req,
 					    code = ctx.$getSetting('code');
 
 					response = fetched;
@@ -2441,16 +2441,21 @@ var bmoorComm =
 						throw new Error('Requestor::status');
 					}
 
-					res = decode ? decode(fetched) : fetched.json ? fetched.json() : fetched;
-
-					if (validation) {
-						// invalid, throw Error
-						if (!validation.call(context, res, ctx, fetched)) {
-							throw new Error('Requestor::validation');
-						}
+					if (decode) {
+						req = decode(fetched);
+					} else if (fetched.json) {
+						req = fetched.json();
+					} else {
+						req = fetched;
 					}
 
-					return success ? success.call(context, res, ctx) : res;
+					return Promise.resolve(req).then(function (res) {
+						if (validation && !validation.call(context, res, ctx, fetched)) {
+							throw new Error('Requestor::validation');
+						}
+
+						return success ? success.call(context, res, ctx) : res;
+					});
 				});
 
 				t.then(function (res) {
