@@ -520,20 +520,24 @@ var bmoorComm =
 					}
 				}).then(function (fetched) {
 					// we hava successful transmition
-					var res = decode ? decode(fetched) : fetched.json ? fetched.json() : fetched,
+					var res,
 					    code = ctx.$getSetting('code');
 
-					response = res;
+					response = fetched;
+
+					if (code && fetched.status !== code) {
+						throw new Error('Requestor::code');
+					} else if (fetched.status && (fetched.status < 200 || 299 < fetched.status)) {
+						throw new Error('Requestor::status');
+					}
+
+					res = decode ? decode(fetched) : fetched.json ? fetched.json() : fetched;
 
 					if (validation) {
 						// invalid, throw Error
 						if (!validation.call(context, res, ctx, fetched)) {
 							throw new Error('Requestor::validation');
 						}
-					} else if (code && fetched.status !== code) {
-						throw new Error('Requestor::code');
-					} else if (fetched.status && (fetched.status < 200 || 299 < fetched.status)) {
-						throw new Error('Requestor::status');
 					}
 
 					return success ? success.call(context, res, ctx) : res;
