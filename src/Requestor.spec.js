@@ -103,7 +103,7 @@ describe('bmoor-comm::Requestor', function(){
 
 		bmoorComm.Requestor.$settings.fetcher = function( url ){
 			fetched = true;
-
+			// TODO : do text
 			expect( url ).toBe( getUrl );
 			return ES6Promise.resolve({
 				json: function(){
@@ -368,10 +368,14 @@ describe('bmoor-comm::Requestor', function(){
 				});
 
 			bmoorComm.Requestor.$settings.fetcher = function(){
-				return ES6Promise.resolve({
-					status: 200,
-					data: 'OK'
-				});
+				return {
+					json: function(){
+						return ES6Promise.resolve({
+							status: 200,
+							data: 'OK'
+						});
+					}
+				};
 			};
 
 			req.go().then(function(){

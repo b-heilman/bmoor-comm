@@ -231,10 +231,19 @@ class Requestor {
 
 			if ( decode ){
 				req = decode(fetched);
+			}else if ( fetched.text ){
+				req = fetched.text().then(function( t ){
+					try{
+						return JSON.parse(t);
+					}catch( ex ){
+						return t;
+					}
+				});
 			}else if ( fetched.json ){
+				// this is a fake fetched object gaurenteed to return json
 				req = fetched.json();
 			}else{
-				req = fetched;
+				throw new Error('fetched response must have text or json');
 			}
 
 			return Promise.resolve(req).then(function( res ){
