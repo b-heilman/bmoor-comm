@@ -2,7 +2,7 @@ var bmoor = require('bmoor'),
 	Requestor = require('./Requestor.js');
 
 module.exports = function( obj, definition ){
-	bmoor.iterate( definition, function( def, name ){
+	bmoor.each( definition, function( def, name ){
 		var fn,
 			req;
 

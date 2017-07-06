@@ -56,6 +56,13 @@ class Feed {
 			};
 		}
 
+		if ( bmoor.isString(ops.delete) ){
+			ops.delete = {
+				url: ops.delete,
+				method: 'DELETE'
+			};
+		}
+
 		if ( bmoor.isString(ops.search) ){
 			ops.search = {
 				url: ops.search,
@@ -155,6 +162,10 @@ class Feed {
 
 			if ( ops.update ){
 				ops.update.prep = prep;
+			}
+
+			if ( ops.delete ){
+				ops.delete.prep = prep;
 			}
 		}
 

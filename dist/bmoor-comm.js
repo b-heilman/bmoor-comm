@@ -147,6 +147,13 @@ var bmoorComm =
 			};
 		}
 
+		if (bmoor.isString(ops.delete)) {
+			ops.delete = {
+				url: ops.delete,
+				method: 'DELETE'
+			};
+		}
+
 		if (bmoor.isString(ops.search)) {
 			ops.search = {
 				url: ops.search,
@@ -246,6 +253,10 @@ var bmoorComm =
 			if (ops.update) {
 				ops.update.prep = prep;
 			}
+
+			if (ops.delete) {
+				ops.delete.prep = prep;
+			}
 		}
 
 		restful(this, ops);
@@ -269,7 +280,7 @@ var bmoorComm =
 	    Requestor = __webpack_require__(6);
 
 	module.exports = function (obj, definition) {
-		bmoor.iterate(definition, function (def, name) {
+		bmoor.each(definition, function (def, name) {
 			var fn, req;
 
 			if (bmoor.isFunction(def)) {
