@@ -30,6 +30,12 @@ class Feed {
 			};
 		}
 
+		if ( bmoor.isString(ops.readMany) ){
+			ops.readMany = {
+				url: ops.readMany
+			};
+		}
+
 		if ( bmoor.isString(ops.all) ){
 			ops.all = {
 				url: ops.all
@@ -166,6 +172,33 @@ class Feed {
 
 			if ( ops.delete ){
 				ops.delete.prep = prep;
+			}
+
+			if ( ops.readMany ){
+				ops.readMany.prep = function( args ){
+					if ( bmoor.isArray(args) ){
+						args.forEach(function( v, i ){
+							if ( !bmoor.isObject(v) ){
+								let t = {};
+
+								t[ settings.id ] = v;
+
+								args[i] = t;
+							}
+						});
+
+						return args;
+					}else{
+						if ( bmoor.isObject(args) ){
+							return [args];
+						}else{
+							let t = {};
+							t[ settings.id ] = args;
+
+							return [t];
+						}
+					}
+				};
 			}
 		}
 

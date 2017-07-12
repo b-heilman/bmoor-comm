@@ -99,11 +99,12 @@ var bmoorComm =
 
 	module.exports = {
 		connect: __webpack_require__(2),
-		mock: __webpack_require__(25),
+		mock: __webpack_require__(26),
+		Url: __webpack_require__(20),
 		Requestor: __webpack_require__(19),
 		restful: __webpack_require__(18),
 		testing: {
-			Requestor: __webpack_require__(26)
+			Requestor: __webpack_require__(27)
 		}
 	};
 
@@ -115,8 +116,8 @@ var bmoorComm =
 
 	module.exports = {
 		Feed: __webpack_require__(3),
-		Repo: __webpack_require__(23),
-		Storage: __webpack_require__(24)
+		Repo: __webpack_require__(24),
+		Storage: __webpack_require__(25)
 	};
 
 /***/ },
@@ -160,6 +161,12 @@ var bmoorComm =
 		if (bmoor.isString(ops.read)) {
 			ops.read = {
 				url: ops.read
+			};
+		}
+
+		if (bmoor.isString(ops.readMany)) {
+			ops.readMany = {
+				url: ops.readMany
 			};
 		}
 
@@ -298,6 +305,33 @@ var bmoorComm =
 
 			if (ops.delete) {
 				ops.delete.prep = prep;
+			}
+
+			if (ops.readMany) {
+				ops.readMany.prep = function (args) {
+					if (bmoor.isArray(args)) {
+						args.forEach(function (v, i) {
+							if (!bmoor.isObject(v)) {
+								var t = {};
+
+								t[settings.id] = v;
+
+								args[i] = t;
+							}
+						});
+
+						return args;
+					} else {
+						if (bmoor.isObject(args)) {
+							return [args];
+						} else {
+							var t = {};
+							t[settings.id] = args;
+
+							return [t];
+						}
+					}
+				};
 			}
 		}
 
@@ -2218,8 +2252,9 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var bmoor = __webpack_require__(4),
-	    Promise = __webpack_require__(20).Promise,
+	var Url = __webpack_require__(20),
+	    bmoor = __webpack_require__(4),
+	    Promise = __webpack_require__(21).Promise,
 	    Eventing = bmoor.Eventing;
 
 	/*
@@ -2314,7 +2349,7 @@ var bmoorComm =
 
 					if (bmoor.isString(v) && setting === 'url') {
 						// allow all strings to be called via formatter
-						v = settings[setting] = bmoor.string.getFormatter(v.replace(/\}\}/g, '|url}}'));
+						v = settings.url = new Url(v).go;
 					}
 
 					if (bmoor.isFunction(v)) {
@@ -2523,6 +2558,82 @@ var bmoorComm =
 /* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
+	'use strict';
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var bmoor = __webpack_require__(4),
+	    parser = /[\?&;]([^=]+)\=([^&;#]+)/g,
+	    getFormatter = bmoor.string.getFormatter;
+
+	function stack(old, variable, value) {
+		var rtn,
+		    fn = getFormatter(value);
+
+		if (old) {
+			rtn = function rtn(obj) {
+				return old(obj) + '&' + variable + '=' + fn(obj);
+			};
+		} else {
+			rtn = function rtn(obj) {
+				return variable + '=' + fn(obj);
+			};
+		}
+
+		return rtn;
+	}
+
+	var Url = function Url(url) {
+		_classCallCheck(this, Url);
+
+		var pos, path, query;
+
+		url = url.replace(/\}\}/g, '|url}}');
+
+		pos = url.indexOf('?');
+
+		if (pos === -1) {
+			path = getFormatter(url);
+			query = null;
+		} else {
+			path = getFormatter(url.substring(0, pos));
+			url = url.substring(pos);
+
+			var match = void 0;
+			while ((match = parser.exec(url)) !== null) {
+				query = stack(query, match[1], match[2]);
+			}
+		}
+
+		this.go = function (obj) {
+			var u = path(obj);
+
+			if (query) {
+				if (bmoor.isArray(obj)) {
+					obj.forEach(function (v, i) {
+						if (i) {
+							u += '&';
+						} else {
+							u += '?';
+						}
+
+						u += query(v);
+					});
+				} else {
+					u += '?' + query(obj);
+				}
+			}
+
+			return u;
+		};
+	};
+
+	module.exports = Url;
+
+/***/ },
+/* 21 */
+/***/ function(module, exports, __webpack_require__) {
+
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;var require;/* WEBPACK VAR INJECTION */(function(process, global) {'use strict';
 
 	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
@@ -2662,7 +2773,7 @@ var bmoorComm =
 	  function attemptVertx() {
 	    try {
 	      var r = require;
-	      var vertx = __webpack_require__(22);
+	      var vertx = __webpack_require__(23);
 	      vertxNext = vertx.runOnLoop || vertx.runOnContext;
 	      return useVertxTimer();
 	    } catch (e) {
@@ -3683,10 +3794,10 @@ var bmoorComm =
 	  return Promise;
 	});
 	//# sourceMappingURL=es6-promise.map
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(21), (function() { return this; }())))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(22), (function() { return this; }())))
 
 /***/ },
-/* 21 */
+/* 22 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -3878,13 +3989,13 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 22 */
+/* 23 */
 /***/ function(module, exports) {
 
 	/* (ignored) */
 
 /***/ },
-/* 23 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -3892,7 +4003,7 @@ var bmoorComm =
 	module.exports = __webpack_require__(4).Memory.use('uhaul');
 
 /***/ },
-/* 24 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -3902,8 +4013,8 @@ var bmoorComm =
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var bmoor = __webpack_require__(4),
-	    uhaul = __webpack_require__(23),
-	    Promise = __webpack_require__(20).Promise;
+	    uhaul = __webpack_require__(24),
+	    Promise = __webpack_require__(21).Promise;
 
 	/*
 	function mimic( dis, feed, field ){
@@ -4145,7 +4256,7 @@ var bmoorComm =
 	module.exports = Storage;
 
 /***/ },
-/* 25 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -4187,7 +4298,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 26 */
+/* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -4196,7 +4307,7 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var Promise = __webpack_require__(20).Promise,
+	var Promise = __webpack_require__(21).Promise,
 	    Requestor = __webpack_require__(19);
 
 	var RequestorMock = function () {

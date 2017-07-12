@@ -1,4 +1,5 @@
-var bmoor = require('bmoor'),
+var Url = require('./Url.js'),
+	bmoor = require('bmoor'),
 	Promise = require('es6-promise').Promise,
 	Eventing = bmoor.Eventing;
 
@@ -88,9 +89,7 @@ class Requestor {
 
 			if ( bmoor.isString(v) && setting === 'url' ){
 				// allow all strings to be called via formatter
-				v = settings[ setting ] = bmoor.string.getFormatter(
-					v.replace(/\}\}/g,'|url}}')
-				);
+				v = settings.url = ( new Url(v) ).go;
 			}
 
 			if ( bmoor.isFunction(v) ){

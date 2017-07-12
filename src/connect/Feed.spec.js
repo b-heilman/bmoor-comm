@@ -320,4 +320,52 @@ describe('bmoor-comm::connect/Feed', function(){
 			);
 		});
 	});
+
+	describe('readMany', function(){
+		var comm;
+
+		beforeEach(function(){
+			bmoorComm.Requestor.clearCache();
+			bmoorComm.Requestor.$settings.fetcher = function( url, obj ){
+				return fetch( url, obj );
+			};
+
+			comm = new Feed({
+				readMany: 'http://localhost:10001/test-many?test[]={{myId}}'
+			},{
+				id: 'myId'
+			});
+		});
+
+		it('should accept single values as ids', function( done ){
+			comm.readMany([1,2,3,4]).then(function( res ){
+				expect( res.length ).toBe( 4 );
+
+				expect( res[0].id ).toBe( 1 );
+				expect( res[1].id ).toBe( 2 );
+				expect( res[2].id ).toBe( 3 );
+				expect( res[3].id ).toBe( 4 );
+
+				done();
+			});
+		});
+
+		it('should accept single values as ids', function( done ){
+			comm.readMany([
+					{myId:1},
+					{myId:2},
+					{myId:3},
+					{myId:4}
+				]).then(function( res ){
+				expect( res.length ).toBe( 4 );
+
+				expect( res[0].id ).toBe( 1 );
+				expect( res[1].id ).toBe( 2 );
+				expect( res[2].id ).toBe( 3 );
+				expect( res[3].id ).toBe( 4 );
+
+				done();
+			});
+		});
+	});
 });

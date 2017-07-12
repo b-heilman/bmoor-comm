@@ -14,8 +14,17 @@ router.use( cors() );
 router.use( bodyParser.json() );
 
 router
-	.get('/test',function (req, res) {
+	.get('/test', function (req, res) {
 		res.json(content);
+	})
+	.get('/test-many', function( req, res ){
+		var rtn = [];
+
+		req.query.test.forEach(function( v ){
+			rtn.push({ id: parseInt(v,10) });
+		});
+
+		res.json( rtn );
 	})
 	.post('/test-json', function( req, res ){
 		console.log( 'json', typeof(req.body), req.body );
