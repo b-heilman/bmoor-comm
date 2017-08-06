@@ -167,12 +167,14 @@ var bmoorComm =
 				method: 'GET'
 			};
 		} else if (bmoor.isString(ops.query)) {
+			var query = ops.query;
 			ops.search = {
 				url: function url(ctx) {
-					return ops.query + '?query=' + JSON.stringify(searchEncode(ctx.$args));
+					return query + '?query=' + JSON.stringify(searchEncode(ctx.$args));
 				},
 				method: 'GET'
 			};
+			delete ops.query;
 		}
 
 		// TODO : a way to have get use all and find by id?
@@ -317,17 +319,24 @@ var bmoorComm =
 		bmoor.each(definition, function (def, name) {
 			var fn, req;
 
-			if (bmoor.isFunction(def)) {
-				obj[name] = def;
-			} else {
-				req = new Requestor(def);
-				fn = function restfulRequest(args, datum, settings) {
-					return req.go(args, datum, settings);
-				};
+			if (def) {
+				// at least protect from undefined and null
+				if (bmoor.isFunction(def)) {
+					obj[name] = def;
+				} else {
+					if (bmoor.isString(def)) {
+						def = { url: def };
+					}
 
-				fn.$settings = def;
+					req = new Requestor(def);
+					fn = function restfulRequest(args, datum, settings) {
+						return req.go(args, datum, settings);
+					};
 
-				obj[name] = fn;
+					fn.$settings = def;
+
+					obj[name] = fn;
+				}
 			}
 		});
 	};
@@ -375,9 +384,8 @@ var bmoorComm =
 		- linger : how long does a request remain deferred
 	*/
 
-	var cache = {},
-	    events = new Eventing(),
-	    deferred = {},
+	var events = new Eventing(),
+	    requestors = [],
 	    defaultSettings = {
 		comm: {},
 		linger: null,
@@ -389,13 +397,40 @@ var bmoorComm =
 		function Requestor(settings) {
 			_classCallCheck(this, Requestor);
 
+			var mine;
+
+			mine = Object.create(settings || {});
+
+			if (!mine.cache) {
+				mine.cache = {};
+			}
+
+			if (!mine.deferred) {
+				mine.deferred = {};
+			}
+
 			this.getSetting = function (setting) {
-				if (setting in settings) {
-					return settings[setting];
+				if (setting in mine) {
+					return mine[setting];
 				} else {
 					return defaultSettings[setting];
 				}
 			};
+
+			this.clearCache = function () {
+				Object.keys(mine.cache).forEach(function (k) {
+					mine.cache[k] = null;
+				});
+			};
+
+			this.clearRoute = function (method, url) {
+				var u = method.toUpperCase() + '::' + url;
+
+				mine.cache[u] = null;
+				mine.deferred[u] = null;
+			};
+
+			requestors.push(this);
 		}
 
 		_createClass(Requestor, [{
@@ -404,12 +439,14 @@ var bmoorComm =
 				var _this = this;
 
 				var ctx,
+				    cached,
 				    reference,
 				    url = this.getSetting('url'),
 				    prep = this.getSetting('prep'),
-				    cached = this.getSetting('cached'),
+				    cache = this.getSetting('cache'),
 				    method = this.getSetting('method').toUpperCase(),
-				    context = this.getSetting('context');
+				    context = this.getSetting('context'),
+				    deferred = this.getSetting('deferred');
 
 				if (!settings) {
 					settings = {};
@@ -433,6 +470,9 @@ var bmoorComm =
 						return _this.getSetting(setting);
 					}
 				};
+
+				// allowed to be overridden on a per call level
+				cached = ctx.$getSetting('cached');
 
 				ctx.$evalSetting = function (setting) {
 					var v = ctx.$getSetting(setting);
@@ -620,7 +660,8 @@ var bmoorComm =
 		}, {
 			key: 'close',
 			value: function close(ctx) {
-				var linger = ctx.$getSetting('linger');
+				var linger = ctx.$getSetting('linger'),
+				    deferred = this.getSetting('deferred');
 
 				if (linger !== null) {
 					setTimeout(function () {
@@ -638,8 +679,9 @@ var bmoorComm =
 	Requestor.$settings = defaultSettings;
 	Requestor.events = events;
 	Requestor.clearCache = function () {
-		cache = {};
-		deferred = {};
+		requestors.forEach(function (r) {
+			r.clearCache();
+		});
 	};
 
 	module.exports = Requestor;

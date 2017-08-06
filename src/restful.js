@@ -6,17 +6,23 @@ module.exports = function( obj, definition ){
 		var fn,
 			req;
 
-		if ( bmoor.isFunction(def) ){
-			obj[name] = def;
-		}else{
-			req = new Requestor( def );
-			fn = function restfulRequest( args, datum, settings ){
-				return req.go( args, datum, settings );
-			};
+		if ( def ){ // at least protect from undefined and null
+			if ( bmoor.isFunction(def) ){
+				obj[name] = def;
+			}else{
+				if ( bmoor.isString(def) ){
+					def = { url: def };
+				}
 
-			fn.$settings = def;
+				req = new Requestor( def );
+				fn = function restfulRequest( args, datum, settings ){
+					return req.go( args, datum, settings );
+				};
 
-			obj[name] = fn;
+				fn.$settings = def;
+
+				obj[name] = fn;
+			}
 		}
 	});
 };

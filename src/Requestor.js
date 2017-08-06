@@ -31,9 +31,8 @@ settings :
 	- linger : how long does a request remain deferred
 */
 
-var cache = {},
-	events = new Eventing(),
-	deferred = {},
+var events = new Eventing(),
+	requestors = [],
 	defaultSettings = {
 		comm : {},
 		linger : null,
@@ -43,23 +42,52 @@ var cache = {},
 
 class Requestor {
 	constructor( settings ){
+		var mine;
+
+		mine = Object.create( settings || {} );
+
+		if ( !mine.cache ){
+			mine.cache = {};
+		}
+
+		if ( !mine.deferred ){
+			mine.deferred = {};
+		}
+
 		this.getSetting = function( setting ){
-			if ( setting in settings ){
-				return settings[ setting ];
+			if ( setting in mine ){
+				return mine[ setting ];
 			}else{
 				return defaultSettings[ setting ];
 			}
 		};
+
+		this.clearCache = function(){
+			Object.keys(mine.cache).forEach(function( k ){
+				mine.cache[k] = null;
+			});
+		};
+
+		this.clearRoute = function( method, url ){
+			var u = method.toUpperCase()+'::'+url;
+
+			mine.cache[u] = null;
+			mine.deferred[u] = null;
+		};
+
+		requestors.push( this );
 	}
 
 	go( args, datum, settings ){
 		var ctx,
+			cached,
 			reference,
 			url = this.getSetting('url'),
 			prep = this.getSetting('prep'),
-			cached = this.getSetting('cached'),
+			cache = this.getSetting('cache'),
 			method = this.getSetting('method').toUpperCase(),
-			context = this.getSetting('context');
+			context = this.getSetting('context'),
+			deferred = this.getSetting('deferred');
 
 		if ( !settings ){
 			settings = {};
@@ -83,6 +111,9 @@ class Requestor {
 				return this.getSetting( setting );
 			}
 		};
+
+		// allowed to be overridden on a per call level
+		cached = ctx.$getSetting('cached');
 
 		ctx.$evalSetting = ( setting ) => {
 			var v = ctx.$getSetting( setting );
@@ -276,7 +307,8 @@ class Requestor {
 	}
 
 	close( ctx ){
-		var linger = ctx.$getSetting('linger');
+		var linger = ctx.$getSetting('linger'),
+			deferred = this.getSetting('deferred');
 		
 		if ( linger !== null ){
 			setTimeout(function(){
@@ -291,8 +323,9 @@ class Requestor {
 Requestor.$settings = defaultSettings;
 Requestor.events = events;
 Requestor.clearCache = function(){
-	cache = {};
-	deferred = {};
+	requestors.forEach(function( r ){
+		r.clearCache();
+	});
 };
 
 module.exports = Requestor;

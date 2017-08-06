@@ -4,15 +4,13 @@ describe('bmoor-comm::connect/Feed', function(){
 
 	describe('basic structure', function(){
 		var content,
-			http = new Feed(
-				{
-					all: '/test/all/{{foDis}}',
-					read: '/test/{{id}}',
-					create: '/test/create',
-					update: '/test/update/{{id}}',
-					query: '/test/search'
-				}
-			);
+			http = new Feed({
+				all: '/test/all/{{foDis}}',
+				read: '/test/{{id}}',
+				create: '/test/create',
+				update: '/test/update/{{id}}',
+				query: '/test/search'
+			});
 
 		beforeEach(function(){
 			httpMock.enable();
