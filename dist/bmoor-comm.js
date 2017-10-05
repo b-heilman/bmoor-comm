@@ -232,12 +232,12 @@ var bmoorComm =
 		}
 
 		//ops.create
-		if (ops.create) {
+		if (ops.create && !ops.create.encode) {
 			ops.create.encode = encode;
 		}
 
 		//ops.update
-		if (ops.update) {
+		if (ops.update && !ops.update.encode) {
 			ops.update.encode = encode;
 		}
 
@@ -255,19 +255,19 @@ var bmoorComm =
 		}
 
 		if (settings.id) {
-			if (ops.read) {
+			if (ops.read && !ops.read.prep) {
 				ops.read.prep = prep;
 			}
 
-			if (ops.update) {
+			if (ops.update && !ops.update.prep) {
 				ops.update.prep = prep;
 			}
 
-			if (ops.delete) {
+			if (ops.delete && !ops.delete.prep) {
 				ops.delete.prep = prep;
 			}
 
-			if (ops.readMany) {
+			if (ops.readMany && !ops.readMany.prep) {
 				ops.readMany.prep = function (args) {
 					if (bmoor.isArray(args)) {
 						args.forEach(function (v, i) {
@@ -853,39 +853,57 @@ var bmoorComm =
 	  */
 		}
 
-		// return only one
-
-
 		_createClass(Storage, [{
+			key: '_insert',
+			value: function _insert(obj) {
+				var id = Date.now() + '-' + this.$collection.length;
+
+				obj[this.id] = id;
+
+				this.$index[obj[this.id]] = obj;
+				this.$collection.push(obj);
+
+				this.save();
+
+				return obj;
+			}
+
+			// return only one
+
+		}, {
 			key: 'read',
 			value: function read(qry) {
 				var _this2 = this;
 
-				var key;
+				var key, rtn;
 
-				return this.all().then(function () {
-					var t;
+				if (bmoor.isObject(qry)) {
+					key = qry[this.id];
+				} else {
+					key = qry;
+				}
 
-					if (bmoor.isObject(qry)) {
-						key = qry[_this2.id];
+				rtn = this.$index[key];
 
-						if (!key) {
-							return _this2.search(qry).then(function (res) {
-								return res[0];
+				if (rtn) {
+					return Promise.resolve(rtn);
+				} else if (this.feed.all) {
+					return this.all().then(function () {
+						var t = _this2.$index[key];
+
+						if (t) {
+							return t;
+						} else {
+							return _this2.feed.read(qry).then(function (res) {
+								return _this2._insert(res);
 							});
 						}
-					} else {
-						key = qry;
-					}
-
-					t = _this2.$index[key];
-
-					if (t) {
-						return t;
-					} else {
-						throw { error: 'Storage:read' };
-					}
-				});
+					});
+				} else {
+					return this.feed.read(qry).then(function (res) {
+						return _this2._insert(res);
+					});
+				}
 			}
 
 			// return an unedited list of all
@@ -895,7 +913,7 @@ var bmoorComm =
 			value: function all(qry) {
 				var _this3 = this;
 
-				if (!this.$collection.length && this.feed) {
+				if (!this.$collection.length && this.feed && this.feed.all) {
 					return this.feed.all(qry).then(function (res) {
 						res.forEach(function (obj) {
 							_this3.$index[obj[_this3.id]] = obj;
@@ -917,32 +935,22 @@ var bmoorComm =
 				return this.all(qry);
 			}
 		}, {
-			key: '_create',
-			value: function _create(obj) {
-				this.$index[obj[this.id]] = obj;
-				this.$collection.push(obj);
-
-				this.save();
-
-				return obj;
-			}
-		}, {
 			key: 'create',
 			value: function create(obj) {
-				var id = Date.now() + '-' + this.$collection.length;
+				var _this4 = this;
 
 				if (this.feed) {
-					return this.feed.create(obj).then(this._create.bind(this));
+					return this.feed.create(obj).then(function () {
+						return _this4._insert(obj);
+					});
 				} else {
-					obj[this.id] = id;
-
-					return Promise.resolve(this._create(obj));
+					return Promise.resolve(this._insert(obj));
 				}
 			}
 		}, {
 			key: 'update',
 			value: function update(qry, obj) {
-				var _this4 = this;
+				var _this5 = this;
 
 				var t;
 
@@ -954,17 +962,17 @@ var bmoorComm =
 
 				return t.then(function () {
 					if (obj) {
-						return _this4.read(qry).then(function (res) {
+						return _this5.read(qry).then(function (res) {
 							if (res) {
 								bmoor.object.extend(res, obj);
 							}
 
-							_this4.save();
+							_this5.save();
 
 							return 'OK';
 						});
 					} else {
-						_this4.save();
+						_this5.save();
 
 						return 'OK';
 					}
@@ -973,7 +981,7 @@ var bmoorComm =
 		}, {
 			key: 'delete',
 			value: function _delete(qry) {
-				var _this5 = this;
+				var _this6 = this;
 
 				var t,
 				    trg = this.read(qry);
@@ -987,10 +995,10 @@ var bmoorComm =
 				}
 
 				return t.then(function () {
-					bmoor.array.remove(_this5.$collection, trg);
-					_this5.$index[trg[_this5.id]] = undefined;
+					bmoor.array.remove(_this6.$collection, trg);
+					_this6.$index[trg[_this6.id]] = undefined;
 
-					_this5.save();
+					_this6.save();
 
 					return 'OK';
 				});

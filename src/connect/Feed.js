@@ -141,12 +141,12 @@ class Feed {
 		}
 
 		//ops.create
-		if ( ops.create ){
+		if ( ops.create && !ops.create.encode ){
 			ops.create.encode = encode;
 		}
 		
 		//ops.update
-		if ( ops.update ){
+		if ( ops.update && !ops.update.encode ){
 			ops.update.encode = encode;
 		}
 
@@ -164,19 +164,19 @@ class Feed {
 		}
 
 		if ( settings.id ){
-			if ( ops.read ){
+			if ( ops.read && !ops.read.prep ){
 				ops.read.prep = prep;
 			}
 
-			if ( ops.update ){
+			if ( ops.update && !ops.update.prep ){
 				ops.update.prep = prep;
 			}
 
-			if ( ops.delete ){
+			if ( ops.delete && !ops.delete.prep ){
 				ops.delete.prep = prep;
 			}
 
-			if ( ops.readMany ){
+			if ( ops.readMany && !ops.readMany.prep ){
 				ops.readMany.prep = function( args ){
 					if ( bmoor.isArray(args) ){
 						args.forEach(function( v, i ){

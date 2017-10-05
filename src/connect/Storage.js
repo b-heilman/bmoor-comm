@@ -61,39 +61,56 @@ class Storage {
 		*/
 	}
 
+	_insert( obj ){
+		var id = Date.now() + '-' + this.$collection.length;
+
+		obj[ this.id ] = id;
+
+		this.$index[ obj[this.id] ] = obj;
+		this.$collection.push( obj );
+
+		this.save();
+
+		return obj;
+	}
+
 	// return only one
 	read( qry ){
-		var key;
+		var key,
+			rtn;
 
-		return this.all().then( () => {
-			var t;
+		if ( bmoor.isObject(qry) ){
+			key = qry[ this.id ];
+		}else{
+			key = qry;
+		}
 
-			if ( bmoor.isObject(qry) ){
-				key = qry[ this.id ];
+		rtn = this.$index[key];
 
-				if ( !key ){
-					return this.search( qry ).then(function( res ){
-						return res[0];
+		if ( rtn ){
+			return Promise.resolve( rtn );
+		}else if ( this.feed.all ){
+			return this.all().then( () => {
+				var t = this.$index[key];
+				
+				if ( t ){
+					return t;
+				}else{
+					return this.feed.read( qry ).then( ( res ) => {
+						return this._insert( res );
 					});
 				}
-			}else{
-				key = qry;
-			}
-
-			t = this.$index[key];
-
-			
-			if ( t ){
-				return t;
-			}else{
-				throw { error:'Storage:read' };
-			}
-		});
+			});
+		}else{
+			return this.feed.read( qry ).then( ( res ) => {
+				return this._insert( res );
+			});
+		}
 	}
 
 	// return an unedited list of all
 	all( qry ){
-		if ( !this.$collection.length && this.feed ){
+		if ( !this.$collection.length && this.feed && this.feed.all ){
 			return this.feed.all( qry ).then( ( res ) => {
 				res.forEach( ( obj ) => {
 					this.$index[ obj[this.id] ] = obj;
@@ -112,24 +129,13 @@ class Storage {
 		return this.all( qry );
 	}
 
-	_create( obj ){
-		this.$index[ obj[this.id] ] = obj;
-		this.$collection.push( obj );
-
-		this.save();
-
-		return obj;
-	}
-
 	create( obj ){
-		var id = Date.now() + '-' + this.$collection.length;
-
 		if ( this.feed ){
-			return this.feed.create( obj ).then( this._create.bind(this) );
+			return this.feed.create( obj ).then( () => {
+				return this._insert(obj);
+			});
 		}else{
-			obj[ this.id ] = id;
-
-			return Promise.resolve( this._create(obj) );
+			return Promise.resolve( this._insert(obj) );
 		}
 	}
 
