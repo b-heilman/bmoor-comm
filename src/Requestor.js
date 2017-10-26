@@ -103,6 +103,8 @@ class Requestor {
 			ctx = { $args: {} };
 		}
 
+		ctx.$settings = settings;
+
 		// some helping functions
 		ctx.$getSetting = ( setting ) => {
 			if ( setting in settings ){
@@ -176,7 +178,7 @@ class Requestor {
 			datum = encode( datum, ctx.$args );
 		}
 
-		events.trigger( 'request', url, datum );
+		events.trigger( 'request', url, datum, ctx.$settings );
 
 		if ( intercept ) {
 			if ( bmoor.isFunction(intercept) ){
@@ -238,7 +240,7 @@ class Requestor {
 		t = bmoor.promise.always(
 			q,
 			function(){
-				events.trigger( 'response' );
+				events.trigger( 'response', ctx.$settings );
 
 				if ( always ){
 					always.call( context, ctx );
@@ -290,10 +292,10 @@ class Requestor {
 
 		t.then(
 			function( res ){
-				events.trigger( 'success', res, response );
+				events.trigger( 'success', res, response, ctx.$settings );
 			},
 			function( error ){
-				events.trigger( 'failure', error, response );
+				events.trigger( 'failure', error, response, ctx.$settings );
 
 				if ( failure ){
 					error.response = response;

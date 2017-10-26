@@ -337,6 +337,10 @@ var bmoorComm =
 			}
 		}
 
+		if (settings.base) {
+			bmoor.object.extend(this, settings.base);
+		}
+
 		restful(this, ops);
 	};
 
@@ -2372,6 +2376,8 @@ var bmoorComm =
 					ctx = { $args: {} };
 				}
 
+				ctx.$settings = settings;
+
 				// some helping functions
 				ctx.$getSetting = function (setting) {
 					if (setting in settings) {
@@ -2448,7 +2454,7 @@ var bmoorComm =
 					datum = encode(datum, ctx.$args);
 				}
 
-				events.trigger('request', url, datum);
+				events.trigger('request', url, datum, ctx.$settings);
 
 				if (intercept) {
 					if (bmoor.isFunction(intercept)) {
@@ -2509,7 +2515,7 @@ var bmoorComm =
 				    validation = ctx.$getSetting('validation');
 
 				t = bmoor.promise.always(q, function () {
-					events.trigger('response');
+					events.trigger('response', ctx.$settings);
 
 					if (always) {
 						always.call(context, ctx);
@@ -2554,9 +2560,9 @@ var bmoorComm =
 				});
 
 				t.then(function (res) {
-					events.trigger('success', res, response);
+					events.trigger('success', res, response, ctx.$settings);
 				}, function (error) {
-					events.trigger('failure', error, response);
+					events.trigger('failure', error, response, ctx.$settings);
 
 					if (failure) {
 						error.response = response;

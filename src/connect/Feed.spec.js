@@ -99,9 +99,14 @@ describe('bmoor-comm::connect/Feed', function(){
 					{
 						minimize: function( obj ){
 							return { foo: obj.eins };
+						},
+						base: {
+							hello: 'world'
 						}
 					}
 				);
+
+			expect( http.hello ).toBe('world');
 
 			bmoorComm.Requestor.clearCache();
 			bmoorComm.Requestor.$settings.fetcher = function(){

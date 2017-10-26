@@ -204,6 +204,10 @@ class Feed {
 			}
 		}
 
+		if ( settings.base ){
+			bmoor.object.extend( this, settings.base );
+		}
+
 		restful( this, ops );
 	}
 }

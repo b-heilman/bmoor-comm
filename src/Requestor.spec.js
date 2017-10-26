@@ -337,19 +337,27 @@ describe('bmoor-comm::Requestor', function(){
 			failure = false;
 
 			subscription = bmoorComm.Requestor.events.subscribe({
-				request: function(){
+				request: function( url, datum, settings ){
+					expect( settings.foo ).toBe( 'bar' );
+
 					request = pos;
 					pos += 1;
 				},
-				response: function(){
+				response: function( settings ){
+					expect( settings.foo ).toBe( 'bar' );
+
 					response = pos;
 					pos += 1;
 				},
-				success: function(){
+				success: function( res, response, settings ){
+					expect( settings.foo ).toBe( 'bar' );
+
 					success = pos;
 					pos += 1;
 				},
-				failure: function(){
+				failure: function( err, response, settings ){
+					expect( settings.foo ).toBe( 'bar' );
+					
 					failure = pos;
 					pos += 1;
 				}
@@ -378,7 +386,7 @@ describe('bmoor-comm::Requestor', function(){
 				};
 			};
 
-			req.go().then(function(){
+			req.go({},{},{foo:'bar'}).then(function(){
 				setTimeout(function(){
 					expect( request ).toBe( 1 );
 					expect( response ).toBe( 2 );
@@ -401,7 +409,7 @@ describe('bmoor-comm::Requestor', function(){
 				);
 			};
 
-			req.go().catch(function(){
+			req.go({},{},{foo:'bar'}).catch(function(){
 				setTimeout(function(){
 					expect( request ).toBe( 1 );
 					expect( response ).toBe( 2 );
@@ -424,7 +432,7 @@ describe('bmoor-comm::Requestor', function(){
 				);
 			};
 
-			req.go().catch(function(){
+			req.go({},{},{foo:'bar'}).catch(function(){
 				setTimeout(function(){
 					expect( request ).toBe( 1 );
 					expect( response ).toBe( 2 );
@@ -450,7 +458,7 @@ describe('bmoor-comm::Requestor', function(){
 				);
 			};
 
-			req.go().catch(function(){
+			req.go({},{},{foo:'bar'}).catch(function(){
 				setTimeout(function(){
 					expect( request ).toBe( 1 );
 					expect( response ).toBe( 2 );
@@ -476,7 +484,7 @@ describe('bmoor-comm::Requestor', function(){
 				);
 			};
 
-			req.go().catch(function(){
+			req.go({},{},{foo:'bar'}).catch(function(){
 				setTimeout(function(){
 					expect( request ).toBe( 1 );
 					expect( response ).toBe( 2 );
