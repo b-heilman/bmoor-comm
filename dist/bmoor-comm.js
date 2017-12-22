@@ -166,6 +166,24 @@ var bmoorComm =
 				url: ops.search,
 				method: 'GET'
 			};
+		} else if (bmoor.isObject(ops.search)) {
+			var methods = ops.search;
+			var keys = Object.keys(methods);
+
+			ops.search = {
+				url: function url(ctx) {
+					var dex = null;
+
+					for (var i = 0, c = keys.length; i < c && dex === null; i++) {
+						if (ctx.$args[keys[i]]) {
+							dex = i;
+						}
+					}
+
+					return methods[keys[dex]];
+				},
+				method: 'GET'
+			};
 		} else if (bmoor.isString(ops.query)) {
 			var query = ops.query;
 			ops.search = {
@@ -483,11 +501,6 @@ var bmoorComm =
 				ctx.$evalSetting = function (setting) {
 					var v = ctx.$getSetting(setting);
 
-					if (bmoor.isString(v) && setting === 'url') {
-						// allow all strings to be called via formatter
-						v = settings.url = new Url(v).go;
-					}
-
 					if (bmoor.isFunction(v)) {
 						return v.call(context, ctx, datum);
 					} else {
@@ -495,7 +508,15 @@ var bmoorComm =
 					}
 				};
 
-				url = ctx.$evalSetting('url');
+				// translate the url for request
+				url = ctx.$getSetting('url');
+				if (bmoor.isFunction(url)) {
+					url = url.call(context, ctx, datum);
+				}
+
+				// allow all strings to be called via formatter
+				url = new Url(url).go.call(context, ctx, datum);
+
 				reference = method + '::' + url;
 
 				ctx.$ref = reference;
@@ -508,7 +529,7 @@ var bmoorComm =
 					} else if (deferred[reference]) {
 						return deferred[reference];
 					} else {
-						res = _this.response(_this.request(ctx, datum), ctx);
+						res = _this.response(_this.request(ctx, datum, url), ctx);
 
 						if (method === 'GET') {
 							deferred[reference] = res;
@@ -528,10 +549,9 @@ var bmoorComm =
 			}
 		}, {
 			key: 'request',
-			value: function request(ctx, datum) {
+			value: function request(ctx, datum, url) {
 				var req,
 				    fetched,
-				    url = ctx.$evalSetting('url'),
 				    comm = ctx.$getSetting('comm'),
 				    code = ctx.$getSetting('code'),
 				    method = this.getSetting('method'),
@@ -726,20 +746,27 @@ var bmoorComm =
 
 		var pos, path, query;
 
-		url = url.replace(/\}\}/g, '|url}}');
-
-		pos = url.indexOf('?');
-
-		if (pos === -1) {
-			path = getFormatter(url);
+		if (!url || url.indexOf('{{') === -1) {
+			path = function path() {
+				return url;
+			};
 			query = null;
 		} else {
-			path = getFormatter(url.substring(0, pos));
-			url = url.substring(pos);
+			url = url.replace(/\}\}/g, '|url}}');
 
-			var match = void 0;
-			while ((match = parser.exec(url)) !== null) {
-				query = stack(query, match[1], match[2]);
+			pos = url.indexOf('?');
+
+			if (pos === -1) {
+				path = getFormatter(url);
+				query = null;
+			} else {
+				path = getFormatter(url.substring(0, pos));
+				url = url.substring(pos);
+
+				var match = void 0;
+				while ((match = parser.exec(url)) !== null) {
+					query = stack(query, match[1], match[2]);
+				}
 			}
 		}
 

@@ -74,6 +74,24 @@ class Feed {
 				url: ops.search,
 				method: 'GET'
 			};
+		}else if ( bmoor.isObject(ops.search) ){
+			let methods = ops.search;
+			let keys = Object.keys(methods);
+
+			ops.search = {
+				url: function( ctx ){
+					var dex = null;
+
+					for( let i = 0, c = keys.length; i < c && dex === null; i++ ){
+						if ( ctx.$args[keys[i]] ){
+							dex = i;
+						}
+					}
+
+					 return methods[ keys[dex] ];
+				},
+				method: 'GET'
+			};
 		}else if ( bmoor.isString(ops.query) ){
 			let query = ops.query;
 			ops.search = {

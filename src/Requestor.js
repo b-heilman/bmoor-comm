@@ -120,11 +120,6 @@ class Requestor {
 		ctx.$evalSetting = ( setting ) => {
 			var v = ctx.$getSetting( setting );
 
-			if ( bmoor.isString(v) && setting === 'url' ){
-				// allow all strings to be called via formatter
-				v = settings.url = ( new Url(v) ).go;
-			}
-
 			if ( bmoor.isFunction(v) ){
 				return v.call( context, ctx, datum );
 			}else{
@@ -132,7 +127,15 @@ class Requestor {
 			}
 		};
 		
-		url = ctx.$evalSetting('url');
+		// translate the url for request
+		url = ctx.$getSetting('url');
+		if ( bmoor.isFunction(url) ){
+			url = url.call( context, ctx, datum );
+		}
+
+		// allow all strings to be called via formatter
+		url = ( new Url(url) ).go.call( context, ctx, datum );
+
 		reference = method + '::' + url;
 		
 		ctx.$ref = reference;
@@ -145,7 +148,7 @@ class Requestor {
 			}else if ( deferred[reference] ){
 				return deferred[ reference ];
 			}else{
-				res = this.response( this.request(ctx,datum), ctx );
+				res = this.response( this.request(ctx,datum,url), ctx );
 				
 				if ( method === 'GET' ){
 					deferred[ reference ] = res;
@@ -162,10 +165,9 @@ class Requestor {
 		});
 	}
 
-	request( ctx, datum ){
+	request( ctx, datum, url ){
 		var req,
 			fetched,
-			url = ctx.$evalSetting('url'),
 			comm = ctx.$getSetting('comm'),
 			code = ctx.$getSetting('code'),
 			method = this.getSetting('method'),

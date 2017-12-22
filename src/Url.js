@@ -25,20 +25,27 @@ class Url {
 			path,
 			query;
 
-		url = url.replace(/\}\}/g,'|url}}');
-
-		pos = url.indexOf('?');
-
-		if ( pos === -1 ){
-			path = getFormatter( url );
+		if ( !url || url.indexOf('{{') === -1 ){
+			path = function(){
+				return url;
+			};
 			query = null;
 		}else{
-			path = getFormatter( url.substring(0,pos) );
-			url = url.substring( pos );
+			url = url.replace(/\}\}/g,'|url}}');
 
-			let match;
-			while ( (match = parser.exec(url)) !== null ) {
-				query = stack( query, match[1], match[2] );
+			pos = url.indexOf('?');
+
+			if ( pos === -1 ){
+				path = getFormatter( url );
+				query = null;
+			}else{
+				path = getFormatter( url.substring(0,pos) );
+				url = url.substring( pos );
+
+				let match;
+				while ( (match = parser.exec(url)) !== null ) {
+					query = stack( query, match[1], match[2] );
+				}
 			}
 		}
 

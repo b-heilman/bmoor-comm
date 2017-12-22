@@ -8,8 +8,7 @@ describe('bmoor-comm::connect/Feed', function(){
 				all: '/test/all/{{foDis}}',
 				read: '/test/{{id}}',
 				create: '/test/create',
-				update: '/test/update/{{id}}',
-				query: '/test/search'
+				update: '/test/update/{{id}}'
 			});
 
 		beforeEach(function(){
@@ -71,19 +70,102 @@ describe('bmoor-comm::connect/Feed', function(){
 				done();
 			});
 		});
+	});
 
-		it('should properly define http.search', function( done ){
-			httpMock.expect('/test/search?query={"id":1,"foo":{"bar":"OK"}}').respond('OK');
-			content = {};
+	describe('search functionality', function(){
+		describe('via query', function(){
+			var content,
+				http = new Feed({
+					query: '/test/search'
+				});
 
-			http.search( {id:1, foo:{bar:'OK'}} ).then(function( res ){
-				expect( res ).toBe( 'OK' );
-				done();
+			beforeEach(function(){
+				httpMock.enable();
+			});
+
+			afterEach(function(){
+				httpMock.verifyWasFulfilled();
+			});
+		
+		
+			it('should properly define http.search', function( done ){
+				httpMock.expect('/test/search?query={"id":1,"foo":{"bar":"OK"}}').respond('OK');
+				content = {};
+
+				http.search( {id:1, foo:{bar:'OK'}} ).then(function( res ){
+					expect( res ).toBe( 'OK' );
+					done();
+				});
+			});
+		});
+
+		describe('via search as a string', function(){
+			var content,
+				http = new Feed({
+					search: '/test/search/{{field1}}/{{field2}}'
+				});
+
+			beforeEach(function(){
+				httpMock.enable();
+			});
+
+			afterEach(function(){
+				httpMock.verifyWasFulfilled();
+			});
+		
+		
+			it('should properly define http.search', function( done ){
+				httpMock.expect('/test/search/ok-1/ok-2').respond('OK');
+				content = {};
+
+				http.search( {field1:'ok-1',field2:'ok-2'} ).then(function( res ){
+					expect( res ).toBe( 'OK' );
+					done();
+				});
+			});
+		});
+
+		describe('via search as an object', function(){
+			var content,
+				http = new Feed({
+					search: {
+						'field1': '/test/search/{{field1}}/{{field3}}',
+						'field2': '/test/search/{{field2}}/{{field3}}'
+					}
+				});
+
+			beforeEach(function(){
+				httpMock.enable();
+			});
+
+			afterEach(function(){
+				httpMock.verifyWasFulfilled();
+			});
+		
+		
+			it('should properly define http.search for field1', function( done ){
+				httpMock.expect('/test/search/ok-1/ok-3').respond('OK');
+				content = {};
+
+				http.search( {field1:'ok-1',field3:'ok-3'} ).then(function( res ){
+					expect( res ).toBe( 'OK' );
+					done();
+				});
+			});
+
+			it('should properly define http.search for field2', function( done ){
+				httpMock.expect('/test/search/ok-2/ok-3').respond('OK');
+				content = {};
+
+				http.search( {field2:'ok-2',field3:'ok-3'} ).then(function( res ){
+					expect( res ).toBe( 'OK' );
+					done();
+				});
 			});
 		});
 	});
 
-	describe('list minimize',function(){
+	describe('list minimize', function(){
 		it('should work correctly', function( done ){
 			var wasCalled = false,
 				http = new Feed(
