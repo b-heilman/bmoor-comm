@@ -125,10 +125,10 @@ describe('bmoor-comm::connect/Feed', function(){
 			});
 		});
 
-		describe('via search as an object', function(){
+		describe('via query as an object', function(){
 			var content,
 				http = new Feed({
-					search: {
+					query: {
 						'field1': '/test/search/{{field1}}/{{field3}}',
 						'field2': '/test/search/{{field2}}/{{field3}}'
 					}

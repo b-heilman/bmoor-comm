@@ -74,8 +74,8 @@ class Feed {
 				url: ops.search,
 				method: 'GET'
 			};
-		}else if ( bmoor.isObject(ops.search) ){
-			let methods = ops.search;
+		}else if ( bmoor.isObject(ops.query) ){
+			let methods = ops.query;
 			let keys = Object.keys(methods);
 
 			ops.search = {

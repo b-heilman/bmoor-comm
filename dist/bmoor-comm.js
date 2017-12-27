@@ -166,8 +166,8 @@ var bmoorComm =
 				url: ops.search,
 				method: 'GET'
 			};
-		} else if (bmoor.isObject(ops.search)) {
-			var methods = ops.search;
+		} else if (bmoor.isObject(ops.query)) {
+			var methods = ops.query;
 			var keys = Object.keys(methods);
 
 			ops.search = {
