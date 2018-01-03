@@ -57,12 +57,12 @@ var bmoorComm =
 
 	module.exports = {
 		connect: __webpack_require__(2),
-		mock: __webpack_require__(11),
-		Url: __webpack_require__(7),
-		Requestor: __webpack_require__(6),
-		restful: __webpack_require__(5),
+		mock: __webpack_require__(13),
+		Url: __webpack_require__(9),
+		Requestor: __webpack_require__(8),
+		restful: __webpack_require__(7),
 		testing: {
-			Requestor: __webpack_require__(12)
+			Requestor: __webpack_require__(14)
 		}
 	};
 
@@ -73,21 +73,359 @@ var bmoorComm =
 	'use strict';
 
 	module.exports = {
-		Feed: __webpack_require__(3),
-		Repo: __webpack_require__(9),
-		Storage: __webpack_require__(10)
+		sql: __webpack_require__(3),
+		mysql: __webpack_require__(4),
+		Feed: __webpack_require__(5),
+		Repo: __webpack_require__(11),
+		Storage: __webpack_require__(12)
 	};
 
 /***/ },
 /* 3 */
+/***/ function(module, exports) {
+
+	'use strict';
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	function buildSelect(model, type) {
+		var alias = model.alias || {},
+		    fields = model[type].map(function (field) {
+			if (alias[field]) {
+				return alias[field] + ' as ' + field;
+			} else {
+				return '`' + field + '`';
+			}
+		});
+
+		return fields.join(', ');
+	}
+
+	function buildStack(model, type, fn) {
+		var prune;
+
+		model[type].forEach(function (field) {
+			if (prune) {
+				var old = prune;
+				prune = function prune(obj) {
+					var rtn = old(obj);
+
+					fn(obj, field, rtn);
+
+					return rtn;
+				};
+			} else {
+				prune = function prune(obj) {
+					var rtn = {};
+
+					fn(obj, field, rtn);
+
+					return rtn;
+				};
+			}
+		});
+
+		return prune;
+	}
+
+	function doInsert(obj, field, rtn) {
+		if (!rtn.fields) {
+			rtn.fields = [field];
+			rtn.values = [obj[field]];
+		} else {
+			rtn.fields.push(field);
+			rtn.values.push(obj[field]);
+		}
+	}
+
+	function doUpdate(obj, field, rtn) {
+		if (field in obj) {
+			rtn[field] = obj[field];
+		}
+	}
+
+	/* model
+	id: primary id field, assumed id
+	table: the fable to do this
+	select: fields that can be selected
+	list: fields that are a subset of select, defaults to select
+	alias: what the really call a field
+	insert: fields allows to be inserted
+	update: fields allowed to be updated
+	*/
+
+	var Sql = function () {
+		function Sql(model) {
+			_classCallCheck(this, Sql);
+
+			this.setModel(model);
+
+			// I don't want these to be defined by setModel
+			this.select = buildSelect(model, 'select');
+
+			if (model.short) {
+				this.short = buildSelect(model, 'short');
+			} else {
+				this.short = this.select;
+			}
+
+			this.cleanInsert = buildStack(model, 'insert', doInsert);
+			this.cleanUpdate = buildStack(model, 'update', doUpdate);
+		}
+
+		_createClass(Sql, [{
+			key: 'setModel',
+			value: function setModel(model) {
+				if (!model.table) {
+					throw new Error('table must be defined');
+				}
+
+				if (!model.id) {
+					model.id = 'id';
+				}
+
+				this.model = model;
+			}
+		}, {
+			key: 'read',
+			value: function read(id) {
+				return {
+					query: '\n\t\t\t\tSELECT ' + this.select + '\n\t\t\t\tFROM ' + this.model.table + '\n\t\t\t\tWHERE ' + this.model.id + ' = ?;\n\t\t\t',
+					params: [id]
+				};
+			}
+		}, {
+			key: 'readMany',
+			value: function readMany(ids) {
+				return {
+					query: '\n\t\t\t\tSELECT ' + this.select + '\n\t\t\t\tFROM ' + this.model.table + '\n\t\t\t\tWHERE ' + this.model.id + ' IN (?);\n\t\t\t',
+					params: [ids]
+				};
+			}
+		}, {
+			key: 'all',
+			value: function all() {
+				return {
+					query: '\n\t\t\t\tSELECT ' + this.select + '\n\t\t\t\tFROM ' + this.model.table + ';\n\t\t\t',
+					params: []
+				};
+			}
+		}, {
+			key: 'list',
+			value: function list() {
+				return {
+					query: '\n\t\t\t\tSELECT ' + this.short + '\n\t\t\t\tFROM ' + this.model.table + ';\n\t\t\t',
+					params: []
+				};
+			}
+		}, {
+			key: 'search',
+			value: function search(datum, short) {
+				var sql = [],
+				    params = [];
+
+				Object.keys(datum).forEach(function (key) {
+					sql.push(key + ' = ?');
+					params.push(datum[key]);
+				});
+
+				return {
+					query: '\n\t\t\t\tSELECT ' + (short ? this.short : this.select) + '\n\t\t\t\tFROM ' + this.model.table + '\n\t\t\t\tWHERE ' + sql.join(' AND ') + ';\n\t\t\t',
+					params: params
+				};
+			}
+		}, {
+			key: 'create',
+			value: function create(datum) {
+				var t = this.cleanInsert(datum);
+
+				return {
+					query: '\n\t\t\t\tINSERT INTO ' + this.model.table + '\n\t\t\t\t(' + t.fields.join(',') + ') VALUES (?);\n\t\t\t',
+					params: [t.values]
+				};
+			}
+		}, {
+			key: 'update',
+			value: function update(id, delta) {
+				return {
+					query: '\n\t\t\t\tUPDATE ' + this.model.table + ' SET ?\n\t\t\t\tWHERE ' + this.model.id + ' = ?;\n\t\t\t',
+					params: [this.cleanUpdate(delta), id]
+				};
+			}
+		}, {
+			key: 'delete',
+			value: function _delete(id) {
+				return {
+					query: '\n\t\t\t\tDELETE FROM ' + this.model.table + '\n\t\t\t\tWHERE ' + this.model.id + ' = ?;\n\t\t\t',
+					params: [id]
+				};
+			}
+		}]);
+
+		return Sql;
+	}();
+
+	module.exports = {
+		Sql: Sql,
+		buildSelect: buildSelect,
+		buildInsert: function buildInsert(model) {
+			return buildStack(model, doInsert);
+		},
+		buildUpdate: function buildUpdate(model) {
+			return buildStack(model, doUpdate);
+		}
+	};
+
+/***/ },
+/* 4 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+	var Sql = __webpack_require__(3).Sql;
+
+	function returnOne(model, multiple) {
+		return function (res) {
+			var rtn = multiple ? res[res.length - 1][0] : res[0];
+
+			if (model.inflate) {
+				model.inflate(rtn);
+			}
+
+			return rtn;
+		};
+	}
+
+	function returnMany(model, multiple) {
+		return function (res) {
+			var rtn = multiple ? res[res.length - 1] : res;
+
+			if (model.inflate) {
+				rtn.forEach(model.inflate);
+			}
+
+			return rtn;
+		};
+	}
+
+	var Mysql = function (_Sql) {
+		_inherits(Mysql, _Sql);
+
+		function Mysql() {
+			_classCallCheck(this, Mysql);
+
+			return _possibleConstructorReturn(this, (Mysql.__proto__ || Object.getPrototypeOf(Mysql)).apply(this, arguments));
+		}
+
+		_createClass(Mysql, [{
+			key: 'eval',
+			value: function _eval(exec) {
+				return this.model.execute(exec.query, exec.params);
+			}
+		}, {
+			key: 'read',
+			value: function read(id) {
+				var exec = _get(Mysql.prototype.__proto__ || Object.getPrototypeOf(Mysql.prototype), 'read', this).call(this, id);
+
+				return this.eval(exec).then(returnOne(this.model));
+			}
+		}, {
+			key: 'readMany',
+			value: function readMany(ids) {
+				var exec = _get(Mysql.prototype.__proto__ || Object.getPrototypeOf(Mysql.prototype), 'readMany', this).call(this, ids);
+
+				return this.eval(exec).then(returnMany(this.model));
+			}
+		}, {
+			key: 'all',
+			value: function all() {
+				var exec = _get(Mysql.prototype.__proto__ || Object.getPrototypeOf(Mysql.prototype), 'all', this).call(this);
+
+				return this.eval(exec).then(returnMany(this.model));
+			}
+		}, {
+			key: 'list',
+			value: function list() {
+				var exec = _get(Mysql.prototype.__proto__ || Object.getPrototypeOf(Mysql.prototype), 'list', this).call(this);
+
+				return this.eval(exec).then(returnMany(this.model));
+			}
+		}, {
+			key: 'search',
+			value: function search(datum, short) {
+				var exec = _get(Mysql.prototype.__proto__ || Object.getPrototypeOf(Mysql.prototype), 'search', this).call(this, datum, short),
+				    rtn = this.eval(exec);
+
+				return rtn.then(returnMany(this.model));
+			}
+		}, {
+			key: 'create',
+			value: function create(datum) {
+				if (this.model.deflate) {
+					this.model.deflate(datum);
+				}
+
+				var exec = _get(Mysql.prototype.__proto__ || Object.getPrototypeOf(Mysql.prototype), 'create', this).call(this, datum);
+
+				exec.query += '\n\t\t\tSELECT ' + this.select + '\n\t\t\tFROM ' + this.model.table + '\n\t\t\tWHERE ' + this.model.id + ' = last_insert_id();\n\t\t';
+
+				return this.eval(exec).then(returnOne(this.model, true));
+			}
+		}, {
+			key: 'update',
+			value: function update(id, datum) {
+				if (this.model.deflate) {
+					this.model.deflate(datum);
+				}
+
+				var exec = _get(Mysql.prototype.__proto__ || Object.getPrototypeOf(Mysql.prototype), 'update', this).call(this, id, datum);
+
+				exec.query += '\n\t\t\tSELECT ' + this.select + '\n\t\t\tFROM ' + this.model.table + '\n\t\t\tWHERE ' + this.model.id + ' = ?;\n\t\t';
+
+				exec.params.push(id);
+
+				return this.eval(exec).then(returnOne(this.model, true));
+			}
+		}, {
+			key: 'delete',
+			value: function _delete(id) {
+				var exec = _get(Mysql.prototype.__proto__ || Object.getPrototypeOf(Mysql.prototype), 'delete', this).call(this, id);
+
+				return this.eval(exec).then(function () {
+					return 'OK';
+				});
+			}
+		}]);
+
+		return Mysql;
+	}(Sql);
+
+	module.exports = {
+		Mysql: Mysql
+	};
+
+/***/ },
+/* 5 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var bmoor = __webpack_require__(4),
-	    restful = __webpack_require__(5);
+	var bmoor = __webpack_require__(6),
+	    restful = __webpack_require__(7);
 
 	function searchEncode(args) {
 		Object.keys(args).forEach(function (key) {
@@ -323,19 +661,19 @@ var bmoorComm =
 	module.exports = Feed;
 
 /***/ },
-/* 4 */
+/* 6 */
 /***/ function(module, exports) {
 
 	module.exports = bmoor;
 
 /***/ },
-/* 5 */
+/* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = __webpack_require__(4),
-	    Requestor = __webpack_require__(6);
+	var bmoor = __webpack_require__(6),
+	    Requestor = __webpack_require__(8);
 
 	module.exports = function (obj, definition) {
 		bmoor.each(definition, function (def, name) {
@@ -364,7 +702,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 6 */
+/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -373,9 +711,9 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var Url = __webpack_require__(7),
-	    bmoor = __webpack_require__(4),
-	    Promise = __webpack_require__(8).Promise,
+	var Url = __webpack_require__(9),
+	    bmoor = __webpack_require__(6),
+	    Promise = __webpack_require__(10).Promise,
 	    Eventing = bmoor.Eventing;
 
 	/*
@@ -713,14 +1051,14 @@ var bmoorComm =
 	module.exports = Requestor;
 
 /***/ },
-/* 7 */
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var bmoor = __webpack_require__(4),
+	var bmoor = __webpack_require__(6),
 	    parser = /[\?&;]([^=]+)\=([^&;#]+)/g,
 	    getFormatter = bmoor.string.getFormatter;
 
@@ -796,21 +1134,21 @@ var bmoorComm =
 	module.exports = Url;
 
 /***/ },
-/* 8 */
+/* 10 */
 /***/ function(module, exports) {
 
 	module.exports = ES6Promise;
 
 /***/ },
-/* 9 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	module.exports = __webpack_require__(4).Memory.use('uhaul');
+	module.exports = __webpack_require__(6).Memory.use('uhaul');
 
 /***/ },
-/* 10 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -819,9 +1157,9 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var bmoor = __webpack_require__(4),
-	    uhaul = __webpack_require__(9),
-	    Promise = __webpack_require__(8).Promise;
+	var bmoor = __webpack_require__(6),
+	    uhaul = __webpack_require__(11),
+	    Promise = __webpack_require__(10).Promise;
 
 	/*
 	function mimic( dis, feed, field ){
@@ -1071,12 +1409,12 @@ var bmoorComm =
 	module.exports = Storage;
 
 /***/ },
-/* 11 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = __webpack_require__(4);
+	var bmoor = __webpack_require__(6);
 
 	module.exports = function (obj, interceptions) {
 		var orig = {};
@@ -1113,7 +1451,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 12 */
+/* 14 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -1122,8 +1460,8 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var Promise = __webpack_require__(8).Promise,
-	    Requestor = __webpack_require__(6);
+	var Promise = __webpack_require__(10).Promise,
+	    Requestor = __webpack_require__(8);
 
 	var RequestorMock = function () {
 		function RequestorMock() {

@@ -3,6 +3,7 @@ var $ = require('gulp-load-plugins')(),
 	map = require('map-stream'),
 	webpack = require('webpack-stream'),
 	karma = require('gulp-karma'),
+	mocha = require('gulp-mocha'),
 	jshint = require('gulp-jshint'),
 	stylish = require('jshint-stylish');
 
@@ -53,6 +54,16 @@ gulp.task('library', function() {
 			externals: env.externals
 		}))
 		.pipe(gulp.dest(env.distDir));
+});
+
+gulp.task('test-node', function(){
+	return gulp.src([
+		'./src/**/*.mocha.js'
+	])
+	.pipe( mocha({reporter:'list'}) )
+	.on('end', function(){
+		console.log( 'end' );
+	});
 });
 
 gulp.task('test-server', function(){
