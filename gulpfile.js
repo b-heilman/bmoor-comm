@@ -2,7 +2,7 @@ var $ = require('gulp-load-plugins')(),
 	gulp = require('gulp'),
 	map = require('map-stream'),
 	webpack = require('webpack-stream'),
-	karma = require('gulp-karma'),
+	Karma = require('karma').Server,
 	mocha = require('gulp-mocha'),
 	jshint = require('gulp-jshint'),
 	stylish = require('jshint-stylish');
@@ -72,22 +72,25 @@ gulp.task('test-server', function(){
 	return server.start( 10001 );
 });
 
-gulp.task('test', ['build','test-server'], function( done ) {
-	var t = gulp.src('aaa')
-		.pipe(karma({
-			configFile: env.karmaConfig,
-			action: 'run'
-		}));
+gulp.task('test-noexit', ['build','test-server'], function( done ) {
+	new Karma({
+		configFile: __dirname +'/'+ env.karmaConfig
+	},function(){
+		done();
+	}).start();
+});
 
-	t.on('error', function(err) {
-		throw err;
-	});
+gulp.task('test', ['test-noexit'], function( done ) {
+	process.exit();
+});
 
-	t.on('close',function(){
-		server.close();
-	});
-
-	return t;
+gulp.task('test-ie', ['build','test-server'], function( done ) {
+	new Karma({
+		configFile: __dirname +'/'+ env.karmaConfig,
+		browsers: ['IE']
+	}, function(){
+		done();
+	}).start();
 });
 
 var failOnError = function() {
@@ -118,7 +121,7 @@ gulp.task('watch', ['build'], function(){
 	gulp.watch(env.jsSrc.concat(['./'+env.demoConfig]), ['lint', 'demo','library']);
 });
 
-gulp.task('serve', ['watch','test-server'], function() {
+gulp.task('serve', ['watch','test-noexit'], function() {
 	gulp.src(env.demoDir)
 		.pipe($.webserver({
 			port: 9000,

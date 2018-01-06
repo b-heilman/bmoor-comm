@@ -2,10 +2,11 @@ const Sql = require('./Sql.js').Sql;
 
 function returnOne( model, multiple ){
 	return function( res ){
-		var rtn = multiple ? res[res.length-1][0] : res[0];
+		var rtn = multiple ? res[res.length-1][0] : res[0],
+			inflate = model.get('inflate');
 
-		if ( model.inflate ){
-			model.inflate( rtn );
+		if ( inflate ){
+			inflate( rtn );
 		}
 
 		return rtn;
@@ -14,10 +15,11 @@ function returnOne( model, multiple ){
 
 function returnMany( model, multiple ){
 	return function( res ){
-		var rtn = multiple ? res[res.length-1] : res;
+		var rtn = multiple ? res[res.length-1] : res,
+			inflate = model.get('inflate');
 
-		if ( model.inflate ){
-			rtn.forEach( model.inflate );
+		if ( inflate ){
+			rtn.forEach( inflate );
 		}
 
 		return rtn;
@@ -26,7 +28,7 @@ function returnMany( model, multiple ){
 
 class Mysql extends Sql {
 	eval( exec ){
-		return this.model.execute( exec.query, exec.params );
+		return this.model.get('execute')( exec.query, exec.params );
 	}
 
 	read( id ){
@@ -61,32 +63,36 @@ class Mysql extends Sql {
 	}
 
 	create( datum ){
-		if ( this.model.deflate ){
-			this.model.deflate( datum );
+		var deflate = this.model.get('deflate');
+
+		if ( deflate ){
+			deflate( datum );
 		}
 
 		let exec = super.create( datum );
 
 		exec.query += `
 			SELECT ${this.select}
-			FROM ${this.model.table}
-			WHERE ${this.model.id} = last_insert_id();
+			FROM ${this.model.get('table')}
+			WHERE ${this.model.get('id')} = last_insert_id();
 		`;
 
 		return this.eval( exec ).then( returnOne(this.model,true) );
 	}
 
 	update( id, datum ){
-		if ( this.model.deflate ){
-			this.model.deflate( datum );
+		var deflate = this.model.get('deflate');
+
+		if ( deflate ){
+			deflate( datum );
 		}
 
 		let exec = super.update( id, datum );
 
 		exec.query += `
 			SELECT ${this.select}
-			FROM ${this.model.table}
-			WHERE ${this.model.id} = ?;
+			FROM ${this.model.get('table')}
+			WHERE ${this.model.get('id')} = ?;
 		`;
 
 		exec.params.push( id );

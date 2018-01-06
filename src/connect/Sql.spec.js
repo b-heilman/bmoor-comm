@@ -60,7 +60,7 @@ describe('bmoor-comm::connect/Sql', function(){
 					update: ['field1','field2']
 				});
 
-			expect( t.model.id ).toBe( 'id' );
+			expect( t.model.get('id') ).toBe( 'id' );
 		});
 
 		it('should clean data for insert', function(){

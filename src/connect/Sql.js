@@ -1,7 +1,8 @@
+const ConnectionModel = require('./Model.js').Model;
 
 function buildSelect( model, type ){
-	var alias = model.alias || {},
-		fields = model[type].map(function(field){
+	var alias = model.get('alias') || {},
+		fields = model.get(type).map(function(field){
 			if ( alias[field] ){
 				return alias[field]+' as '+field;
 			}else{
@@ -15,7 +16,7 @@ function buildSelect( model, type ){
 function buildStack( model, type, fn ){
 	var prune;
 
-	model[type].forEach(function( field ){
+	model.get(type).forEach(function( field ){
 		if ( prune ){
 			let old = prune;
 			prune = function( obj ){
@@ -66,39 +67,31 @@ update: fields allowed to be updated
 */
 class Sql {
 	constructor( model ){
-		this.setModel( model );
+		if ( model instanceof ConnectionModel ){
+			this.model = model;
+		}else{
+			this.model = new ConnectionModel( model );
+		}
 
 		// I don't want these to be defined by setModel
-		this.select = buildSelect( model, 'select' );
+		this.select = buildSelect( this.model, 'select' );
 
-		if ( model.short ){
-			this.short = buildSelect( model, 'short' );
+		if ( this.model.get('short') ){
+			this.short = buildSelect( this.model, 'short' );
 		}else{
 			this.short = this.select;
 		}
 
-		this.cleanInsert = buildStack( model, 'insert', doInsert );
-		this.cleanUpdate = buildStack( model, 'update', doUpdate );
-	}
-
-	setModel( model ){
-		if ( !model.table ){
-			throw new Error('table must be defined');
-		}
-
-		if ( !model.id ){
-			model.id = 'id';
-		}
-
-		this.model = model;
+		this.cleanInsert = buildStack( this.model, 'insert', doInsert );
+		this.cleanUpdate = buildStack( this.model, 'update', doUpdate );
 	}
 
 	read( id ){
 		return {
 			query: `
 				SELECT ${this.select}
-				FROM ${this.model.table}
-				WHERE ${this.model.id} = ?;
+				FROM ${this.model.get('table')}
+				WHERE ${this.model.get('id')} = ?;
 			`,
 			params: [id]
 		};
@@ -108,8 +101,8 @@ class Sql {
 		return {
 			query: `
 				SELECT ${this.select}
-				FROM ${this.model.table}
-				WHERE ${this.model.id} IN (?);
+				FROM ${this.model.get('table')}
+				WHERE ${this.model.get('id')} IN (?);
 			`,
 			params: [ids]
 		};
@@ -119,7 +112,7 @@ class Sql {
 		return {
 			query: `
 				SELECT ${this.select}
-				FROM ${this.model.table};
+				FROM ${this.model.get('table')};
 			`,
 			params: []
 		};
@@ -129,7 +122,7 @@ class Sql {
 		return {
 			query: `
 				SELECT ${this.short}
-				FROM ${this.model.table};
+				FROM ${this.model.get('table')};
 			`,
 			params: []
 		};
@@ -147,7 +140,7 @@ class Sql {
 		return {
 			query: `
 				SELECT ${short ? this.short : this.select}
-				FROM ${this.model.table}
+				FROM ${this.model.get('table')}
 				WHERE ${sql.join(' AND ')};
 			`,
 			params: params
@@ -159,7 +152,7 @@ class Sql {
 
 		return {
 			query: `
-				INSERT INTO ${this.model.table}
+				INSERT INTO ${this.model.get('table')}
 				(${t.fields.join(',')}) VALUES (?);
 			`,
 			params: [t.values]
@@ -169,8 +162,8 @@ class Sql {
 	update( id, delta ){
 		return {
 			query: `
-				UPDATE ${this.model.table} SET ?
-				WHERE ${this.model.id} = ?;
+				UPDATE ${this.model.get('table')} SET ?
+				WHERE ${this.model.get('id')} = ?;
 			`,
 			params: [this.cleanUpdate(delta), id]
 		};
@@ -179,8 +172,8 @@ class Sql {
 	delete( id ){
 		return {
 			query: `
-				DELETE FROM ${this.model.table}
-				WHERE ${this.model.id} = ?;
+				DELETE FROM ${this.model.get('table')}
+				WHERE ${this.model.get('id')} = ?;
 			`,
 			params: [id]
 		};

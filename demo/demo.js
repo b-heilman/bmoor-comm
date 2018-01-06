@@ -99,12 +99,12 @@ var bmoorComm =
 
 	module.exports = {
 		connect: __webpack_require__(2),
-		mock: __webpack_require__(28),
-		Url: __webpack_require__(22),
-		Requestor: __webpack_require__(21),
-		restful: __webpack_require__(20),
+		mock: __webpack_require__(30),
+		Url: __webpack_require__(24),
+		Requestor: __webpack_require__(23),
+		restful: __webpack_require__(22),
 		testing: {
-			Requestor: __webpack_require__(29)
+			Requestor: __webpack_require__(31)
 		}
 	};
 
@@ -116,15 +116,17 @@ var bmoorComm =
 
 	module.exports = {
 		sql: __webpack_require__(3),
-		mysql: __webpack_require__(4),
-		Feed: __webpack_require__(5),
-		Repo: __webpack_require__(26),
-		Storage: __webpack_require__(27)
+		mysql: __webpack_require__(5),
+		model: __webpack_require__(4),
+		router: __webpack_require__(6),
+		Feed: __webpack_require__(7),
+		Repo: __webpack_require__(28),
+		Storage: __webpack_require__(29)
 	};
 
 /***/ },
 /* 3 */
-/***/ function(module, exports) {
+/***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
@@ -132,9 +134,11 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+	var ConnectionModel = __webpack_require__(4).Model;
+
 	function buildSelect(model, type) {
-		var alias = model.alias || {},
-		    fields = model[type].map(function (field) {
+		var alias = model.get('alias') || {},
+		    fields = model.get(type).map(function (field) {
 			if (alias[field]) {
 				return alias[field] + ' as ' + field;
 			} else {
@@ -148,7 +152,7 @@ var bmoorComm =
 	function buildStack(model, type, fn) {
 		var prune;
 
-		model[type].forEach(function (field) {
+		model.get(type).forEach(function (field) {
 			if (prune) {
 				var old = prune;
 				prune = function prune(obj) {
@@ -202,39 +206,30 @@ var bmoorComm =
 		function Sql(model) {
 			_classCallCheck(this, Sql);
 
-			this.setModel(model);
+			if (model instanceof ConnectionModel) {
+				this.model = model;
+			} else {
+				this.model = new ConnectionModel(model);
+			}
 
 			// I don't want these to be defined by setModel
-			this.select = buildSelect(model, 'select');
+			this.select = buildSelect(this.model, 'select');
 
-			if (model.short) {
-				this.short = buildSelect(model, 'short');
+			if (this.model.get('short')) {
+				this.short = buildSelect(this.model, 'short');
 			} else {
 				this.short = this.select;
 			}
 
-			this.cleanInsert = buildStack(model, 'insert', doInsert);
-			this.cleanUpdate = buildStack(model, 'update', doUpdate);
+			this.cleanInsert = buildStack(this.model, 'insert', doInsert);
+			this.cleanUpdate = buildStack(this.model, 'update', doUpdate);
 		}
 
 		_createClass(Sql, [{
-			key: 'setModel',
-			value: function setModel(model) {
-				if (!model.table) {
-					throw new Error('table must be defined');
-				}
-
-				if (!model.id) {
-					model.id = 'id';
-				}
-
-				this.model = model;
-			}
-		}, {
 			key: 'read',
 			value: function read(id) {
 				return {
-					query: '\n\t\t\t\tSELECT ' + this.select + '\n\t\t\t\tFROM ' + this.model.table + '\n\t\t\t\tWHERE ' + this.model.id + ' = ?;\n\t\t\t',
+					query: '\n\t\t\t\tSELECT ' + this.select + '\n\t\t\t\tFROM ' + this.model.get('table') + '\n\t\t\t\tWHERE ' + this.model.get('id') + ' = ?;\n\t\t\t',
 					params: [id]
 				};
 			}
@@ -242,7 +237,7 @@ var bmoorComm =
 			key: 'readMany',
 			value: function readMany(ids) {
 				return {
-					query: '\n\t\t\t\tSELECT ' + this.select + '\n\t\t\t\tFROM ' + this.model.table + '\n\t\t\t\tWHERE ' + this.model.id + ' IN (?);\n\t\t\t',
+					query: '\n\t\t\t\tSELECT ' + this.select + '\n\t\t\t\tFROM ' + this.model.get('table') + '\n\t\t\t\tWHERE ' + this.model.get('id') + ' IN (?);\n\t\t\t',
 					params: [ids]
 				};
 			}
@@ -250,7 +245,7 @@ var bmoorComm =
 			key: 'all',
 			value: function all() {
 				return {
-					query: '\n\t\t\t\tSELECT ' + this.select + '\n\t\t\t\tFROM ' + this.model.table + ';\n\t\t\t',
+					query: '\n\t\t\t\tSELECT ' + this.select + '\n\t\t\t\tFROM ' + this.model.get('table') + ';\n\t\t\t',
 					params: []
 				};
 			}
@@ -258,7 +253,7 @@ var bmoorComm =
 			key: 'list',
 			value: function list() {
 				return {
-					query: '\n\t\t\t\tSELECT ' + this.short + '\n\t\t\t\tFROM ' + this.model.table + ';\n\t\t\t',
+					query: '\n\t\t\t\tSELECT ' + this.short + '\n\t\t\t\tFROM ' + this.model.get('table') + ';\n\t\t\t',
 					params: []
 				};
 			}
@@ -274,7 +269,7 @@ var bmoorComm =
 				});
 
 				return {
-					query: '\n\t\t\t\tSELECT ' + (short ? this.short : this.select) + '\n\t\t\t\tFROM ' + this.model.table + '\n\t\t\t\tWHERE ' + sql.join(' AND ') + ';\n\t\t\t',
+					query: '\n\t\t\t\tSELECT ' + (short ? this.short : this.select) + '\n\t\t\t\tFROM ' + this.model.get('table') + '\n\t\t\t\tWHERE ' + sql.join(' AND ') + ';\n\t\t\t',
 					params: params
 				};
 			}
@@ -284,7 +279,7 @@ var bmoorComm =
 				var t = this.cleanInsert(datum);
 
 				return {
-					query: '\n\t\t\t\tINSERT INTO ' + this.model.table + '\n\t\t\t\t(' + t.fields.join(',') + ') VALUES (?);\n\t\t\t',
+					query: '\n\t\t\t\tINSERT INTO ' + this.model.get('table') + '\n\t\t\t\t(' + t.fields.join(',') + ') VALUES (?);\n\t\t\t',
 					params: [t.values]
 				};
 			}
@@ -292,7 +287,7 @@ var bmoorComm =
 			key: 'update',
 			value: function update(id, delta) {
 				return {
-					query: '\n\t\t\t\tUPDATE ' + this.model.table + ' SET ?\n\t\t\t\tWHERE ' + this.model.id + ' = ?;\n\t\t\t',
+					query: '\n\t\t\t\tUPDATE ' + this.model.get('table') + ' SET ?\n\t\t\t\tWHERE ' + this.model.get('id') + ' = ?;\n\t\t\t',
 					params: [this.cleanUpdate(delta), id]
 				};
 			}
@@ -300,7 +295,7 @@ var bmoorComm =
 			key: 'delete',
 			value: function _delete(id) {
 				return {
-					query: '\n\t\t\t\tDELETE FROM ' + this.model.table + '\n\t\t\t\tWHERE ' + this.model.id + ' = ?;\n\t\t\t',
+					query: '\n\t\t\t\tDELETE FROM ' + this.model.get('table') + '\n\t\t\t\tWHERE ' + this.model.get('id') + ' = ?;\n\t\t\t',
 					params: [id]
 				};
 			}
@@ -322,6 +317,64 @@ var bmoorComm =
 
 /***/ },
 /* 4 */
+/***/ function(module, exports) {
+
+	'use strict';
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var Model = function () {
+		function Model(model, extend) {
+			var _this = this;
+
+			_classCallCheck(this, Model);
+
+			this.mask = Object.create(model);
+
+			if (!this.mask.table) {
+				throw new Error('table must be defined');
+			}
+
+			this.mask.name = model.table.replace(/[_\s]+/g, '/'); // I'm gonna make this web safe in the future
+
+			if (!this.mask.id) {
+				this.mask.id = 'id';
+			}
+
+			if (!this.mask.path) {
+				this.mask.path = '';
+			}
+
+			if (extend) {
+				Object.keys(extend).forEach(function (key) {
+					_this.set(key, extend[key]);
+				});
+			}
+		}
+
+		_createClass(Model, [{
+			key: 'set',
+			value: function set(key, value) {
+				this.mask[key] = value;
+			}
+		}, {
+			key: 'get',
+			value: function get(key) {
+				return this.mask[key];
+			}
+		}]);
+
+		return Model;
+	}();
+
+	module.exports = {
+		Model: Model
+	};
+
+/***/ },
+/* 5 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -340,10 +393,11 @@ var bmoorComm =
 
 	function returnOne(model, multiple) {
 		return function (res) {
-			var rtn = multiple ? res[res.length - 1][0] : res[0];
+			var rtn = multiple ? res[res.length - 1][0] : res[0],
+			    inflate = model.get('inflate');
 
-			if (model.inflate) {
-				model.inflate(rtn);
+			if (inflate) {
+				inflate(rtn);
 			}
 
 			return rtn;
@@ -352,10 +406,11 @@ var bmoorComm =
 
 	function returnMany(model, multiple) {
 		return function (res) {
-			var rtn = multiple ? res[res.length - 1] : res;
+			var rtn = multiple ? res[res.length - 1] : res,
+			    inflate = model.get('inflate');
 
-			if (model.inflate) {
-				rtn.forEach(model.inflate);
+			if (inflate) {
+				rtn.forEach(inflate);
 			}
 
 			return rtn;
@@ -374,7 +429,7 @@ var bmoorComm =
 		_createClass(Mysql, [{
 			key: 'eval',
 			value: function _eval(exec) {
-				return this.model.execute(exec.query, exec.params);
+				return this.model.get('execute')(exec.query, exec.params);
 			}
 		}, {
 			key: 'read',
@@ -415,26 +470,30 @@ var bmoorComm =
 		}, {
 			key: 'create',
 			value: function create(datum) {
-				if (this.model.deflate) {
-					this.model.deflate(datum);
+				var deflate = this.model.get('deflate');
+
+				if (deflate) {
+					deflate(datum);
 				}
 
 				var exec = _get(Mysql.prototype.__proto__ || Object.getPrototypeOf(Mysql.prototype), 'create', this).call(this, datum);
 
-				exec.query += '\n\t\t\tSELECT ' + this.select + '\n\t\t\tFROM ' + this.model.table + '\n\t\t\tWHERE ' + this.model.id + ' = last_insert_id();\n\t\t';
+				exec.query += '\n\t\t\tSELECT ' + this.select + '\n\t\t\tFROM ' + this.model.get('table') + '\n\t\t\tWHERE ' + this.model.get('id') + ' = last_insert_id();\n\t\t';
 
 				return this.eval(exec).then(returnOne(this.model, true));
 			}
 		}, {
 			key: 'update',
 			value: function update(id, datum) {
-				if (this.model.deflate) {
-					this.model.deflate(datum);
+				var deflate = this.model.get('deflate');
+
+				if (deflate) {
+					deflate(datum);
 				}
 
 				var exec = _get(Mysql.prototype.__proto__ || Object.getPrototypeOf(Mysql.prototype), 'update', this).call(this, id, datum);
 
-				exec.query += '\n\t\t\tSELECT ' + this.select + '\n\t\t\tFROM ' + this.model.table + '\n\t\t\tWHERE ' + this.model.id + ' = ?;\n\t\t';
+				exec.query += '\n\t\t\tSELECT ' + this.select + '\n\t\t\tFROM ' + this.model.get('table') + '\n\t\t\tWHERE ' + this.model.get('id') + ' = ?;\n\t\t';
 
 				exec.params.push(id);
 
@@ -459,15 +518,114 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 5 */
+/* 6 */
+/***/ function(module, exports) {
+
+	'use strict';
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	var Router = function () {
+		function Router(connector) {
+			_classCallCheck(this, Router);
+
+			this.connector = connector;
+		}
+
+		// all get route should be called with ( params, query )
+
+
+		_createClass(Router, [{
+			key: 'getRoutes',
+			value: function getRoutes() {
+				var _this = this;
+
+				var ops = this.connector.model,
+				    rtn = [{ // read
+					url: ops.get('path') + ('/' + ops.get('name') + '/instance/:id'),
+					method: 'get',
+					fn: function fn(params) {
+						return _this.connector.read(params.id);
+					}
+				}, { // all, getMany: ops.get('path+`/${ops.get('name}?id[]={{${ops.get('id}}}`
+					url: ops.get('path') + ('/' + ops.get('name') + '/many'),
+					method: 'get',
+					fn: function fn(params, query) {
+						return _this.connector.readMany(query.id);
+					}
+				}, { // all, getMany: ops.get('path+`/${ops.get('name}?id[]={{${ops.get('id}}}`
+					url: ops.get('path') + ('/' + ops.get('name')),
+					method: 'get',
+					fn: function fn() {
+						return _this.connector.all();
+					}
+				}, { // list
+					url: ops.get('path') + ('/' + ops.get('name') + '/list'),
+					method: 'get',
+					fn: function fn() {
+						return _this.connector.list();
+					}
+				}, { // search: /test/search?query={"foo":"bar"}
+					url: ops.get('path') + ('/' + ops.get('name') + '/search'),
+					method: 'get',
+					fn: function fn(params, query) {
+						return _this.connector.search(JSON.parse(query.query));
+					}
+				}, { // create
+					url: ops.get('path') + ('/' + ops.get('name')),
+					method: 'post',
+					fn: function fn(body) {
+						return _this.connector.create(body);
+					}
+				}, { // update
+					url: ops.get('path') + ('/' + ops.get('name') + '/:id'),
+					method: 'patch',
+					fn: function fn(params, body) {
+						return _this.connector.update(params.id, body);
+					}
+				}, { // delete
+					url: ops.get('path') + ('/' + ops.get('name') + '/:id'),
+					method: 'delete',
+					fn: function fn(params) {
+						return _this.connector.delete(params.id);
+					}
+				}];
+
+				rtn.$index = {
+					read: rtn[0],
+					readMany: rtn[1],
+					all: rtn[2],
+					list: rtn[3],
+					search: rtn[4],
+					create: rtn[5],
+					update: rtn[6],
+					delete: rtn[7]
+				};
+
+				return rtn;
+			}
+		}]);
+
+		return Router;
+	}();
+
+	module.exports = {
+		Router: Router
+	};
+
+/***/ },
+/* 7 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var bmoor = __webpack_require__(6),
-	    restful = __webpack_require__(20);
+	var bmoor = __webpack_require__(8),
+	    Model = __webpack_require__(4).Model,
+	    restful = __webpack_require__(22);
 
 	function searchEncode(args) {
 		Object.keys(args).forEach(function (key) {
@@ -494,6 +652,24 @@ var bmoorComm =
 		// settings => inflate, deflate
 		if (!settings) {
 			settings = {};
+		}
+
+		if (ops instanceof Model) {
+			settings.id = ops.get('id');
+
+			ops = {
+				read: ops.get('path') + ('/' + ops.get('name') + '/instance/{{' + ops.get('id') + '}}'), // GET
+				readMany: ops.get('path') + ('/' + ops.get('name') + '/many?id[]={{' + ops.get('id') + '}}'), // GET
+				all: ops.get('path') + ('/' + ops.get('name')), // GET
+				list: ops.get('path') + ('/' + ops.get('name') + '/list'), // GET
+				query: ops.get('path') + ('/' + ops.get('name') + '/search'), // GET
+				create: ops.get('path') + ('/' + ops.get('name')), // POST
+				update: {
+					url: ops.get('path') + ('/' + ops.get('name') + '/{{' + ops.get('id') + '}}'),
+					method: 'PATCH'
+				},
+				delete: ops.get('path') + ('/' + ops.get('name') + '/{{' + ops.get('id') + '}}') // DELETE
+			};
 		}
 
 		if (bmoor.isString(ops.read)) {
@@ -566,6 +742,7 @@ var bmoorComm =
 			};
 		} else if (bmoor.isString(ops.query)) {
 			var query = ops.query;
+
 			ops.search = {
 				url: function url(ctx) {
 					return query + '?query=' + JSON.stringify(searchEncode(ctx.$args));
@@ -703,28 +880,28 @@ var bmoorComm =
 	module.exports = Feed;
 
 /***/ },
-/* 6 */
+/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = Object.create(__webpack_require__(7));
+	var bmoor = Object.create(__webpack_require__(9));
 
-	bmoor.dom = __webpack_require__(8);
-	bmoor.data = __webpack_require__(9);
-	bmoor.array = __webpack_require__(10);
-	bmoor.build = __webpack_require__(11);
-	bmoor.object = __webpack_require__(15);
-	bmoor.string = __webpack_require__(16);
-	bmoor.promise = __webpack_require__(17);
+	bmoor.dom = __webpack_require__(10);
+	bmoor.data = __webpack_require__(11);
+	bmoor.array = __webpack_require__(12);
+	bmoor.build = __webpack_require__(13);
+	bmoor.object = __webpack_require__(17);
+	bmoor.string = __webpack_require__(18);
+	bmoor.promise = __webpack_require__(19);
 
-	bmoor.Memory = __webpack_require__(18);
-	bmoor.Eventing = __webpack_require__(19);
+	bmoor.Memory = __webpack_require__(20);
+	bmoor.Eventing = __webpack_require__(21);
 
 	module.exports = bmoor;
 
 /***/ },
-/* 7 */
+/* 9 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -1181,12 +1358,12 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 8 */
+/* 10 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = __webpack_require__(7),
+	var bmoor = __webpack_require__(9),
 	    regex = {};
 
 	function getReg(className) {
@@ -1481,7 +1658,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 9 */
+/* 11 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -1521,7 +1698,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 10 */
+/* 12 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -1531,7 +1708,7 @@ var bmoorComm =
 	 * @module bmoor.array
 	 **/
 
-	var bmoor = __webpack_require__(7);
+	var bmoor = __webpack_require__(9);
 
 	/**
 	 * Search an array for an element, starting at the begining or a specified location
@@ -1773,15 +1950,15 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 11 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = __webpack_require__(7),
-	    mixin = __webpack_require__(12),
-	    plugin = __webpack_require__(13),
-	    decorate = __webpack_require__(14);
+	var bmoor = __webpack_require__(9),
+	    mixin = __webpack_require__(14),
+	    plugin = __webpack_require__(15),
+	    decorate = __webpack_require__(16);
 
 	function proc(action, proto, def) {
 		var i, c;
@@ -1836,12 +2013,12 @@ var bmoorComm =
 	module.exports = maker;
 
 /***/ },
-/* 12 */
+/* 14 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = __webpack_require__(7);
+	var bmoor = __webpack_require__(9);
 
 	module.exports = function (to, from) {
 		bmoor.iterate(from, function (val, key) {
@@ -1850,14 +2027,14 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 13 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-	var bmoor = __webpack_require__(7);
+	var bmoor = __webpack_require__(9);
 
 	function override(key, target, action, plugin) {
 		var old = target[key];
@@ -1906,14 +2083,14 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 14 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
-	var bmoor = __webpack_require__(7);
+	var bmoor = __webpack_require__(9);
 
 	function override(key, target, action) {
 		var old = target[key];
@@ -1951,7 +2128,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 15 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -1963,7 +2140,7 @@ var bmoorComm =
 	 * @module bmoor.object
 	 **/
 
-	var bmoor = __webpack_require__(7);
+	var bmoor = __webpack_require__(9);
 
 	function values(obj) {
 		var res = [];
@@ -2232,12 +2409,12 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 16 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = __webpack_require__(7);
+	var bmoor = __webpack_require__(9);
 
 	/**
 	 * Array helper functions
@@ -2429,7 +2606,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 17 */
+/* 19 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -2444,7 +2621,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 18 */
+/* 20 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -2489,7 +2666,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 19 */
+/* 21 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -2580,13 +2757,13 @@ var bmoorComm =
 	module.exports = Eventing;
 
 /***/ },
-/* 20 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = __webpack_require__(6),
-	    Requestor = __webpack_require__(21);
+	var bmoor = __webpack_require__(8),
+	    Requestor = __webpack_require__(23);
 
 	module.exports = function (obj, definition) {
 		bmoor.each(definition, function (def, name) {
@@ -2615,7 +2792,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 21 */
+/* 23 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2624,9 +2801,9 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var Url = __webpack_require__(22),
-	    bmoor = __webpack_require__(6),
-	    Promise = __webpack_require__(23).Promise,
+	var Url = __webpack_require__(24),
+	    bmoor = __webpack_require__(8),
+	    Promise = __webpack_require__(25).Promise,
 	    Eventing = bmoor.Eventing;
 
 	/*
@@ -2780,7 +2957,7 @@ var bmoorComm =
 					} else if (deferred[reference]) {
 						return deferred[reference];
 					} else {
-						res = _this.response(_this.request(ctx, datum, url), ctx);
+						res = _this.response(_this.request(ctx, datum, url, method), ctx);
 
 						if (method === 'GET') {
 							deferred[reference] = res;
@@ -2800,12 +2977,11 @@ var bmoorComm =
 			}
 		}, {
 			key: 'request',
-			value: function request(ctx, datum, url) {
+			value: function request(ctx, datum, url, method) {
 				var req,
 				    fetched,
 				    comm = ctx.$getSetting('comm'),
 				    code = ctx.$getSetting('code'),
-				    method = this.getSetting('method'),
 				    encode = ctx.$getSetting('encode'),
 				    fetcher = this.getSetting('fetcher'),
 				    headers = ctx.$evalSetting('headers'),
@@ -2964,14 +3140,14 @@ var bmoorComm =
 	module.exports = Requestor;
 
 /***/ },
-/* 22 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var bmoor = __webpack_require__(6),
+	var bmoor = __webpack_require__(8),
 	    parser = /[\?&;]([^=]+)\=([^&;#]+)/g,
 	    getFormatter = bmoor.string.getFormatter;
 
@@ -3047,7 +3223,7 @@ var bmoorComm =
 	module.exports = Url;
 
 /***/ },
-/* 23 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;var require;/* WEBPACK VAR INJECTION */(function(process, global) {'use strict';
@@ -3189,7 +3365,7 @@ var bmoorComm =
 	  function attemptVertx() {
 	    try {
 	      var r = require;
-	      var vertx = __webpack_require__(25);
+	      var vertx = __webpack_require__(27);
 	      vertxNext = vertx.runOnLoop || vertx.runOnContext;
 	      return useVertxTimer();
 	    } catch (e) {
@@ -4210,10 +4386,10 @@ var bmoorComm =
 	  return Promise;
 	});
 	//# sourceMappingURL=es6-promise.map
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(24), (function() { return this; }())))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(26), (function() { return this; }())))
 
 /***/ },
-/* 24 */
+/* 26 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -4405,21 +4581,21 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 25 */
+/* 27 */
 /***/ function(module, exports) {
 
 	/* (ignored) */
 
 /***/ },
-/* 26 */
+/* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	module.exports = __webpack_require__(6).Memory.use('uhaul');
+	module.exports = __webpack_require__(8).Memory.use('uhaul');
 
 /***/ },
-/* 27 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -4428,9 +4604,9 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var bmoor = __webpack_require__(6),
-	    uhaul = __webpack_require__(26),
-	    Promise = __webpack_require__(23).Promise;
+	var bmoor = __webpack_require__(8),
+	    uhaul = __webpack_require__(28),
+	    Promise = __webpack_require__(25).Promise;
 
 	/*
 	function mimic( dis, feed, field ){
@@ -4680,12 +4856,12 @@ var bmoorComm =
 	module.exports = Storage;
 
 /***/ },
-/* 28 */
+/* 30 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
-	var bmoor = __webpack_require__(6);
+	var bmoor = __webpack_require__(8);
 
 	module.exports = function (obj, interceptions) {
 		var orig = {};
@@ -4722,7 +4898,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 29 */
+/* 31 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -4731,8 +4907,8 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var Promise = __webpack_require__(23).Promise,
-	    Requestor = __webpack_require__(21);
+	var Promise = __webpack_require__(25).Promise,
+	    Requestor = __webpack_require__(23);
 
 	var RequestorMock = function () {
 		function RequestorMock() {
@@ -4758,6 +4934,12 @@ var bmoorComm =
 							expect(t.params).toEqual(ops.body);
 						}
 
+						if (t.other) {
+							Object.keys(t.other).forEach(function (key) {
+								t.other[key](ops[key]);
+							});
+						}
+
 						p = Promise.resolve({
 							json: function json() {
 								return t.res || 'OK';
@@ -4773,9 +4955,10 @@ var bmoorComm =
 			}
 		}, {
 			key: 'expect',
-			value: function expect(url, params) {
+			value: function expect(url, params, other) {
 				var t = {
 					url: url,
+					other: other,
 					params: params
 				};
 

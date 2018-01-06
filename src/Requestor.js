@@ -148,7 +148,7 @@ class Requestor {
 			}else if ( deferred[reference] ){
 				return deferred[ reference ];
 			}else{
-				res = this.response( this.request(ctx,datum,url), ctx );
+				res = this.response( this.request(ctx,datum,url,method), ctx );
 				
 				if ( method === 'GET' ){
 					deferred[ reference ] = res;
@@ -165,12 +165,11 @@ class Requestor {
 		});
 	}
 
-	request( ctx, datum, url ){
+	request( ctx, datum, url, method ){
 		var req,
 			fetched,
 			comm = ctx.$getSetting('comm'),
 			code = ctx.$getSetting('code'),
-			method = this.getSetting('method'),
 			encode = ctx.$getSetting('encode'),
 			fetcher = this.getSetting('fetcher'),
 			headers = ctx.$evalSetting('headers'),

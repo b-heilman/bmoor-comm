@@ -18,6 +18,12 @@ class RequestorMock {
 					expect( t.params ).toEqual( ops.body );
 				}
 
+				if ( t.other ){
+					Object.keys( t.other ).forEach(function( key ){
+						t.other[key]( ops[key] );
+					});
+				}
+
 				p = Promise.resolve({
 					json: function(){
 						return t.res || 'OK';
@@ -32,9 +38,10 @@ class RequestorMock {
 		};
 	}
 
-	expect( url, params ){
+	expect( url, params, other ){
 		var t = {
 				url: url,
+				other: other,
 				params: params
 			};
 

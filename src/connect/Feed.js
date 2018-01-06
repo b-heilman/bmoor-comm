@@ -1,4 +1,5 @@
 var bmoor = require('bmoor'),
+	Model = require('./Model.js').Model,
 	restful = require('../restful.js');
 
 function searchEncode( args ){
@@ -22,6 +23,24 @@ class Feed {
 		// settings => inflate, deflate
 		if ( !settings ){
 			settings = {};
+		}
+
+		if ( ops instanceof Model ){
+			settings.id = ops.get('id');
+
+			ops = {
+				read: ops.get('path')+`/${ops.get('name')}/instance/{{${ops.get('id')}}}`, // GET
+				readMany: ops.get('path')+`/${ops.get('name')}/many?id[]={{${ops.get('id')}}}`, // GET
+				all: ops.get('path')+`/${ops.get('name')}`, // GET
+				list: ops.get('path')+`/${ops.get('name')}/list`, // GET
+				query: ops.get('path')+`/${ops.get('name')}/search`, // GET
+				create: ops.get('path')+`/${ops.get('name')}`, // POST
+				update: {
+					url: ops.get('path')+`/${ops.get('name')}/{{${ops.get('id')}}}`,
+					method: 'PATCH'
+				},
+				delete: ops.get('path')+`/${ops.get('name')}/{{${ops.get('id')}}}` // DELETE
+			};
 		}
 
 		if ( bmoor.isString(ops.read) ){
@@ -94,6 +113,7 @@ class Feed {
 			};
 		}else if ( bmoor.isString(ops.query) ){
 			let query = ops.query;
+
 			ops.search = {
 				url: function( ctx ){
 					return query + '?query=' + 

@@ -1,5 +1,6 @@
 describe('bmoor-comm::connect/Feed', function(){
 	var Feed = bmoorComm.connect.Feed,
+		Model = bmoorComm.connect.model.Model,
 		httpMock = new bmoorComm.testing.Requestor();
 
 	describe('basic structure', function(){
@@ -43,7 +44,8 @@ describe('bmoor-comm::connect/Feed', function(){
 		});
 
 		it('should properly define http.list', function( done ){
-			httpMock.expect('/test/all/2').respond('OK');
+			httpMock.expect('/test/all/2',null,{method:function( m ){ expect(m).toBe('GET'); }})
+			.respond('OK');
 
 			http.list({foDis:2}).then(function( res ){
 				expect( res ).toBe( 'OK' );
@@ -406,7 +408,7 @@ describe('bmoor-comm::connect/Feed', function(){
 		});
 	});
 
-	describe('readMany', function(){
+	describe('readMany, via test server', function(){
 		var comm;
 
 		beforeEach(function(){
@@ -435,13 +437,13 @@ describe('bmoor-comm::connect/Feed', function(){
 			});
 		});
 
-		it('should accept single values as ids', function( done ){
+		it('should accept objects and pull the ids', function( done ){
 			comm.readMany([
-					{myId:1},
-					{myId:2},
-					{myId:3},
-					{myId:4}
-				]).then(function( res ){
+				{myId:1},
+				{myId:2},
+				{myId:3},
+				{myId:4}
+			]).then(function( res ){
 				expect( res.length ).toBe( 4 );
 
 				expect( res[0].id ).toBe( 1 );
@@ -449,6 +451,135 @@ describe('bmoor-comm::connect/Feed', function(){
 				expect( res[2].id ).toBe( 3 );
 				expect( res[3].id ).toBe( 4 );
 
+				done();
+			});
+		});
+	});
+
+	describe('using a connect/Model', function(){
+		var content,
+			http = new Feed( new Model({table:'test',path:''}) );
+
+		beforeEach(function(){
+			httpMock.enable();
+		});
+
+		afterEach(function(){
+			httpMock.verifyWasFulfilled();
+		});
+
+		it('should properly define http.read', function( done ){
+			httpMock.expect('/test/instance/101').respond('OK');
+
+			http.read({id:101}).then(
+				function( res ){
+					expect( res ).toBe( 'OK' );
+					done();
+				},
+				function( ex ){
+					console.log( 'Feed.spec :: test - fail', ex );
+				}
+			);
+		});
+
+		it('should properly define http.readMany', function( done ){
+			httpMock.expect('/test/many?id[]=101',null,{
+				method: function( m ){ expect(m).toBe('GET'); }
+			}).respond('OK');
+
+			http.readMany([101]).then(
+				function( res ){
+					expect( res ).toBe( 'OK' );
+					done();
+				},
+				function( ex ){
+					console.log( 'Feed.spec :: test - fail', ex );
+				}
+			);
+		});
+
+		it('should properly define http.readMany via objects', function( done ){
+			httpMock.expect('/test/many?id[]=101',null,{
+				method: function( m ){ expect(m).toBe('GET'); }
+			}).respond('OK');
+
+			http.readMany([{id:101}]).then(
+				function( res ){
+					expect( res ).toBe( 'OK' );
+					done();
+				},
+				function( ex ){
+					console.log( 'Feed.spec :: test - fail', ex );
+				}
+			);
+		});
+
+		it('should properly define http.all', function( done ){
+			httpMock.expect('/test',null,{
+				method: function( m ){ expect(m).toBe('GET'); }
+			}).respond('OK');
+
+			http.all().then(function( res ){
+				expect( res ).toBe( 'OK' );
+				done();
+			});
+		});
+
+		it('should properly define http.list', function( done ){
+			httpMock.expect('/test/list',null,{
+				method: function( m ){ expect(m).toBe('GET'); }
+			}).respond('OK');
+
+			http.list().then(function( res ){
+				expect( res ).toBe( 'OK' );
+				done();
+			});
+		});
+
+		it('should properly define http.search', function( done ){
+			httpMock.expect('/test/search?query={"foo":"bar"}',null,{
+				method: function( m ){ expect(m).toBe('GET'); }
+			})
+			.respond('OK');
+
+			http.search({foo:'bar'}).then(function( res ){
+				expect( res ).toBe( 'OK' );
+				done();
+			});
+		});
+
+		it('should properly define http.create', function( done ){
+			httpMock.expect('/test',null,{
+				method: function( m ){ expect(m).toBe('POST'); }
+			}).respond('OK');
+			content = {};
+
+			http.create( null, content ).then(function( res ){
+				expect( res ).toBe( 'OK' );
+				done();
+			});
+		});
+
+		it('should properly define http.update', function( done ){
+			httpMock.expect('/test/1',null,{
+				method: function( m ){ expect(m).toBe('PATCH'); }
+			}).respond('OK');
+			content = {};
+
+			http.update( {id:1}, content ).then(function( res ){
+				expect( res ).toBe( 'OK' );
+				done();
+			});
+		});
+
+		it('should properly define http.delete', function( done ){
+			httpMock.expect('/test/1',null,{
+				method: function( m ){ expect(m).toBe('DELETE'); }
+			}).respond('OK');
+			content = {};
+
+			http.delete( {id:1}, content ).then(function( res ){
+				expect( res ).toBe( 'OK' );
 				done();
 			});
 		});
