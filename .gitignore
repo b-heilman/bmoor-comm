@@ -3,3 +3,4 @@
 /.project
 /node_modules
 /config/mysql.js
+/config/mysql.env.js

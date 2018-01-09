@@ -89,6 +89,10 @@ class Requestor {
 			context = this.getSetting('context'),
 			deferred = this.getSetting('deferred');
 
+		if ( !args ){
+			args = {};
+		}
+
 		if ( !settings ){
 			settings = {};
 		}

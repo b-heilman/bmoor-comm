@@ -866,9 +866,18 @@ var bmoorComm =
 					}
 
 					req = new Requestor(def);
-					fn = function restfulRequest(args, datum, settings) {
-						return req.go(args, datum, settings);
-					};
+
+					if (def.interface) {
+						fn = function restfulRequest() {
+							var commands = def.interface.apply(this, arguments);
+
+							return req.go(commands.args, commands.datum, commands.settings);
+						};
+					} else {
+						fn = function restfulRequest(args, datum, settings) {
+							return req.go(args, datum, settings);
+						};
+					}
 
 					fn.$settings = def;
 
@@ -984,6 +993,10 @@ var bmoorComm =
 				    method = this.getSetting('method').toUpperCase(),
 				    context = this.getSetting('context'),
 				    deferred = this.getSetting('deferred');
+
+				if (!args) {
+					args = {};
+				}
 
 				if (!settings) {
 					settings = {};
