@@ -1,10 +1,14 @@
 const ConnectionModel = require('./Model.js').Model;
 
+function aliasReplace( alias, field ){
+	return alias.replace(/\{\$\}/g,field);
+}
+
 function buildSelect( model, type ){
 	var alias = model.get('alias') || {},
 		fields = model.get(type).map(function(field){
 			if ( alias[field] ){
-				return alias[field]+' as '+field;
+				return `${aliasReplace(alias[field],field)} as \`${field}\``;
 			}else{
 				return '`'+field+'`';
 			}
@@ -182,6 +186,7 @@ class Sql {
 
 module.exports = {
 	Sql: Sql,
+	aliasReplace: aliasReplace,
 	buildSelect: buildSelect,
 	buildInsert: function( model ){
 		return buildStack( model, doInsert );

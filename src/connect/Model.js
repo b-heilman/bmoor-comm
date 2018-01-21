@@ -6,14 +6,15 @@ class Model {
 			throw new Error('table must be defined');
 		}
 
-		this.mask.name = model.table.replace(/[_\s]+/g,'/'); // I'm gonna make this web safe in the future
-
-		if ( !this.mask.id ){
+		if ( !this.mask.id ){ // unique idenfier field, one key supported for now
 			this.mask.id = 'id';
 		}
 
-		if ( !this.mask.path ){
-			this.mask.path = '';
+		// name to used in routing
+		this.mask.name = model.table.replace(/[_\s]+/g,'/'); // I'm gonna make this web safe in the future
+
+		if ( !this.mask.path ){ // root path for routing
+			this.mask.path = ''; 
 		}
 
 		if ( extend ){

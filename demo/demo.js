@@ -136,11 +136,15 @@ var bmoorComm =
 
 	var ConnectionModel = __webpack_require__(4).Model;
 
+	function aliasReplace(alias, field) {
+		return alias.replace(/\{\$\}/g, field);
+	}
+
 	function buildSelect(model, type) {
 		var alias = model.get('alias') || {},
 		    fields = model.get(type).map(function (field) {
 			if (alias[field]) {
-				return alias[field] + ' as ' + field;
+				return aliasReplace(alias[field], field) + ' as `' + field + '`';
 			} else {
 				return '`' + field + '`';
 			}
@@ -306,6 +310,7 @@ var bmoorComm =
 
 	module.exports = {
 		Sql: Sql,
+		aliasReplace: aliasReplace,
 		buildSelect: buildSelect,
 		buildInsert: function buildInsert(model) {
 			return buildStack(model, doInsert);
@@ -337,13 +342,16 @@ var bmoorComm =
 				throw new Error('table must be defined');
 			}
 
-			this.mask.name = model.table.replace(/[_\s]+/g, '/'); // I'm gonna make this web safe in the future
-
 			if (!this.mask.id) {
+				// unique idenfier field, one key supported for now
 				this.mask.id = 'id';
 			}
 
+			// name to used in routing
+			this.mask.name = model.table.replace(/[_\s]+/g, '/'); // I'm gonna make this web safe in the future
+
 			if (!this.mask.path) {
+				// root path for routing
 				this.mask.path = '';
 			}
 

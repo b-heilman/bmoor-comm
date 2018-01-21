@@ -128,7 +128,7 @@ describe('bmoor-comm::connect/Sql', function(){
 					update: ['field1','field2']
 				});
 
-			expect( t.select ).toBe( 'abc123 as field1, `field2`' );
+			expect( t.select ).toBe( 'abc123 as `field1`, `field2`' );
 		});
 
 		it('should properly define short as select if not defined', function(){
@@ -160,13 +160,13 @@ describe('bmoor-comm::connect/Sql', function(){
 					select: ['field1','field2'],
 					short: ['field1'],
 					alias: {
-						'field1': 'abc123'
+						'field1': 'parseInt({$})'
 					},
 					insert: ['field1','field2'],
 					update: ['field1','field2']
 				});
 
-			expect( t.short ).toBe( 'abc123 as field1' );
+			expect( t.short ).toBe( 'parseInt(field1) as `field1`' );
 		});
 	});
 
