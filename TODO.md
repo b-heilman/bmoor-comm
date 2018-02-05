@@ -1,3 +1,68 @@
+- Modify how Model generates data
+ new Model(<CommModel>)
+
+  - <ForeignKey>
+{
+  model: '',
+  field: '' 
+}
+
+  - <Validation>
+{
+  type: [string|number|boolean|null|undefined]
+  nullable: boolean, default true
+  regex: '/matchSomething/'
+  min: 
+  max:
+}
+
+  - <AccessInfo> or boolean for all
+{
+  select: boolean,
+  list: boolean,
+  insert: boolean,
+  update: boolean,
+  alias: boolean, // ui representation
+  foreign: [ <ForeignKey> ],
+  validation: <Validation>,
+  label: 'something'
+}
+
+  - <RoutingInfo>
+{
+}
+
+  - <DbInfo>
+{
+  database:
+  table:
+  key: 
+}
+   
+  - <Operations>
+{
+  inflate: DB -> UI
+  deflate: UI -> DB
+}
+
+  - <CommModel>
+{
+  fields: { $fieldName: <AccessInfo> },
+  routing: <RoutingInfo>,
+  db: <DbInfo>
+  ops: <Operations>
+}
+
+  - Generates API
+    - getForServer
+    - getForClient
+    - pruneUpdate
+    - pruneInsert
+    - pruneSelect
+    - selections
+    - insertions
+    - updates
+
 - Way to more abstractly pass data from request method
   - args : method to decode arguments to hash object
   - url : method to build url

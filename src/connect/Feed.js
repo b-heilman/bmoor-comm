@@ -188,6 +188,11 @@ class Feed {
 			ops.update.encode = encode;
 		}
 
+		//ops.update
+		if ( ops.delete && !ops.delete.encode ){
+			ops.delete.encode = encode;
+		}
+
 		function prep( args ){
 			var t;
 

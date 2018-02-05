@@ -131,4 +131,3 @@ gulp.task('serve', ['watch','test-noexit'], function() {
 			open: true
 		}))
 });
-

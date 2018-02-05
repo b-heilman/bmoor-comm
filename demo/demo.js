@@ -99,12 +99,12 @@ var bmoorComm =
 
 	module.exports = {
 		connect: __webpack_require__(2),
-		mock: __webpack_require__(30),
-		Url: __webpack_require__(24),
-		Requestor: __webpack_require__(23),
-		restful: __webpack_require__(22),
+		mock: __webpack_require__(34),
+		Url: __webpack_require__(28),
+		Requestor: __webpack_require__(27),
+		restful: __webpack_require__(26),
 		testing: {
-			Requestor: __webpack_require__(31)
+			Requestor: __webpack_require__(35)
 		}
 	};
 
@@ -120,8 +120,8 @@ var bmoorComm =
 		model: __webpack_require__(4),
 		router: __webpack_require__(6),
 		Feed: __webpack_require__(7),
-		Repo: __webpack_require__(28),
-		Storage: __webpack_require__(29)
+		Repo: __webpack_require__(32),
+		Storage: __webpack_require__(33)
 	};
 
 /***/ },
@@ -625,7 +625,7 @@ var bmoorComm =
 
 	var bmoor = __webpack_require__(8),
 	    Model = __webpack_require__(4).Model,
-	    restful = __webpack_require__(22);
+	    restful = __webpack_require__(26);
 
 	function searchEncode(args) {
 		Object.keys(args).forEach(function (key) {
@@ -816,6 +816,11 @@ var bmoorComm =
 			ops.update.encode = encode;
 		}
 
+		//ops.update
+		if (ops.delete && !ops.delete.encode) {
+			ops.delete.encode = encode;
+		}
+
 		function prep(args) {
 			var t;
 
@@ -889,14 +894,15 @@ var bmoorComm =
 
 	bmoor.dom = __webpack_require__(10);
 	bmoor.data = __webpack_require__(11);
-	bmoor.array = __webpack_require__(12);
-	bmoor.build = __webpack_require__(13);
-	bmoor.object = __webpack_require__(17);
-	bmoor.string = __webpack_require__(18);
-	bmoor.promise = __webpack_require__(19);
+	bmoor.flow = __webpack_require__(12);
+	bmoor.array = __webpack_require__(16);
+	bmoor.build = __webpack_require__(17);
+	bmoor.object = __webpack_require__(21);
+	bmoor.string = __webpack_require__(22);
+	bmoor.promise = __webpack_require__(23);
 
-	bmoor.Memory = __webpack_require__(20);
-	bmoor.Eventing = __webpack_require__(21);
+	bmoor.Memory = __webpack_require__(24);
+	bmoor.Eventing = __webpack_require__(25);
 
 	module.exports = bmoor;
 
@@ -1703,6 +1709,175 @@ var bmoorComm =
 
 	'use strict';
 
+	module.exports = {
+		soon: __webpack_require__(13),
+		debounce: __webpack_require__(14),
+		window: __webpack_require__(15)
+	};
+
+/***/ },
+/* 13 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	module.exports = function (cb, time, settings) {
+		var ctx, args, timeout;
+
+		if (!settings) {
+			settings = {};
+		}
+
+		function fire() {
+			timeout = null;
+			cb.apply(settings.context || ctx, args);
+		}
+
+		var fn = function sooned() {
+			ctx = this;
+			args = arguments;
+
+			if (!timeout) {
+				timeout = setTimeout(fire, time);
+			}
+		};
+
+		fn.clear = function () {
+			clearTimeout(timeout);
+			timeout = null;
+		};
+
+		fn.flush = function () {
+			fire();
+			fn.clear();
+		};
+
+		return fn;
+	};
+
+/***/ },
+/* 14 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	module.exports = function (cb, time, settings) {
+		var ctx, args, limit, timeout;
+
+		if (!settings) {
+			settings = {};
+		}
+
+		function fire() {
+			timeout = null;
+			cb.apply(settings.context || ctx, args);
+		}
+
+		function run() {
+			var now = Date.now();
+
+			if (now >= limit) {
+				fire();
+			} else {
+				timeout = setTimeout(run, limit - now);
+			}
+		}
+
+		var fn = function debounced() {
+			var now = Date.now();
+
+			ctx = this;
+			args = arguments;
+			limit = now + time;
+
+			if (!timeout) {
+				timeout = setTimeout(run, time);
+			}
+		};
+
+		fn.clear = function () {
+			clearTimeout(timeout);
+			timeout = null;
+			limit = null;
+		};
+
+		fn.flush = function () {
+			fire();
+			fn.clear();
+		};
+
+		fn.shift = function (diff) {
+			limit += diff;
+		};
+
+		return fn;
+	};
+
+/***/ },
+/* 15 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	module.exports = function (cb, min, max, settings) {
+		var ctx, args, next, limit, timeout;
+
+		if (!settings) {
+			settings = {};
+		}
+
+		function fire() {
+			limit = null;
+			cb.apply(settings.context || ctx, args);
+		}
+
+		function run() {
+			var now = Date.now();
+
+			if (now >= limit || now >= next) {
+				fire();
+			} else {
+				timeout = setTimeout(run, Math.min(limit, next) - now);
+			}
+		}
+
+		var fn = function windowed() {
+			var now = Date.now();
+
+			ctx = this;
+			args = arguments;
+			next = now + min;
+
+			if (!limit) {
+				limit = now + max;
+				timeout = setTimeout(run, min);
+			}
+		};
+
+		fn.clear = function () {
+			clearTimeout(timeout);
+			timeout = null;
+			limit = null;
+		};
+
+		fn.flush = function () {
+			fire();
+			fn.clear();
+		};
+
+		fn.shift = function (diff) {
+			limit += diff;
+		};
+
+		return fn;
+	};
+
+/***/ },
+/* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
 	/**
 	 * Array helper functions
 	 * @module bmoor.array
@@ -1950,15 +2125,15 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 13 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	var bmoor = __webpack_require__(9),
-	    mixin = __webpack_require__(14),
-	    plugin = __webpack_require__(15),
-	    decorate = __webpack_require__(16);
+	    mixin = __webpack_require__(18),
+	    plugin = __webpack_require__(19),
+	    decorate = __webpack_require__(20);
 
 	function proc(action, proto, def) {
 		var i, c;
@@ -2013,7 +2188,7 @@ var bmoorComm =
 	module.exports = maker;
 
 /***/ },
-/* 14 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2027,7 +2202,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 15 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2083,7 +2258,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 16 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2128,7 +2303,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 17 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2409,7 +2584,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 18 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2606,7 +2781,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 19 */
+/* 23 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -2621,34 +2796,75 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 20 */
+/* 24 */
 /***/ function(module, exports) {
 
 	'use strict';
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var master = {};
 
-	var Memory = function Memory() {
-		_classCallCheck(this, Memory);
+	var Memory = function () {
+		function Memory() {
+			_classCallCheck(this, Memory);
 
-		var index = {};
+			var index = {};
 
-		this.check = function (name) {
-			return index[name];
-		};
+			this.get = function (name) {
+				return index[name];
+			};
 
-		this.register = function (name, obj) {
-			index[name] = obj;
-		};
+			this.check = function (name) {
+				console.log('Memory::check will soon removed');
+				return index[name];
+			};
 
-		this.clear = function (name) {
-			if (name in index) {
-				delete index[name];
+			this.isSet = function (name) {
+				return !!index[name];
+			};
+
+			this.register = function (name, obj) {
+				index[name] = obj;
+			};
+
+			this.clear = function (name) {
+				if (name in index) {
+					delete index[name];
+				}
+			};
+
+			this.keys = function () {
+				return Object.keys(index);
+			};
+		}
+
+		_createClass(Memory, [{
+			key: 'import',
+			value: function _import(json) {
+				var _this = this;
+
+				Object.keys(json).forEach(function (key) {
+					_this.register(key, json[key]);
+				});
 			}
-		};
-	};
+		}, {
+			key: 'export',
+			value: function _export() {
+				var _this2 = this;
+
+				return this.keys().reduce(function (rtn, key) {
+					rtn[key] = _this2.get(key);
+
+					return rtn;
+				}, {});
+			}
+		}]);
+
+		return Memory;
+	}();
 
 	module.exports = {
 		Memory: Memory,
@@ -2666,7 +2882,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 21 */
+/* 25 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -2757,13 +2973,13 @@ var bmoorComm =
 	module.exports = Eventing;
 
 /***/ },
-/* 22 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
 
 	var bmoor = __webpack_require__(8),
-	    Requestor = __webpack_require__(23);
+	    Requestor = __webpack_require__(27);
 
 	module.exports = function (obj, definition) {
 		bmoor.each(definition, function (def, name) {
@@ -2801,7 +3017,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 23 */
+/* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -2810,9 +3026,9 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var Url = __webpack_require__(24),
+	var Url = __webpack_require__(28),
 	    bmoor = __webpack_require__(8),
-	    Promise = __webpack_require__(25).Promise,
+	    Promise = __webpack_require__(29).Promise,
 	    Eventing = bmoor.Eventing;
 
 	/*
@@ -3153,7 +3369,7 @@ var bmoorComm =
 	module.exports = Requestor;
 
 /***/ },
-/* 24 */
+/* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -3236,7 +3452,7 @@ var bmoorComm =
 	module.exports = Url;
 
 /***/ },
-/* 25 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;var require;/* WEBPACK VAR INJECTION */(function(process, global) {'use strict';
@@ -3378,7 +3594,7 @@ var bmoorComm =
 	  function attemptVertx() {
 	    try {
 	      var r = require;
-	      var vertx = __webpack_require__(27);
+	      var vertx = __webpack_require__(31);
 	      vertxNext = vertx.runOnLoop || vertx.runOnContext;
 	      return useVertxTimer();
 	    } catch (e) {
@@ -4399,10 +4615,10 @@ var bmoorComm =
 	  return Promise;
 	});
 	//# sourceMappingURL=es6-promise.map
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(26), (function() { return this; }())))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(30), (function() { return this; }())))
 
 /***/ },
-/* 26 */
+/* 30 */
 /***/ function(module, exports) {
 
 	'use strict';
@@ -4594,13 +4810,13 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 27 */
+/* 31 */
 /***/ function(module, exports) {
 
 	/* (ignored) */
 
 /***/ },
-/* 28 */
+/* 32 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -4608,7 +4824,7 @@ var bmoorComm =
 	module.exports = __webpack_require__(8).Memory.use('uhaul');
 
 /***/ },
-/* 29 */
+/* 33 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -4618,8 +4834,8 @@ var bmoorComm =
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 	var bmoor = __webpack_require__(8),
-	    uhaul = __webpack_require__(28),
-	    Promise = __webpack_require__(25).Promise;
+	    uhaul = __webpack_require__(32),
+	    Promise = __webpack_require__(29).Promise;
 
 	/*
 	function mimic( dis, feed, field ){
@@ -4869,7 +5085,7 @@ var bmoorComm =
 	module.exports = Storage;
 
 /***/ },
-/* 30 */
+/* 34 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -4911,7 +5127,7 @@ var bmoorComm =
 	};
 
 /***/ },
-/* 31 */
+/* 35 */
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
@@ -4920,8 +5136,8 @@ var bmoorComm =
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-	var Promise = __webpack_require__(25).Promise,
-	    Requestor = __webpack_require__(23);
+	var Promise = __webpack_require__(29).Promise,
+	    Requestor = __webpack_require__(27);
 
 	var RequestorMock = function () {
 		function RequestorMock() {
