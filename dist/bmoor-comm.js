@@ -620,7 +620,7 @@ var bmoorComm =
 				readMany: ops.get('path') + ('/' + ops.get('name') + '/many?id[]={{' + ops.get('id') + '}}'), // GET
 				all: ops.get('path') + ('/' + ops.get('name')), // GET
 				list: ops.get('path') + ('/' + ops.get('name') + '/list'), // GET
-				query: ops.get('path') + ('/' + ops.get('name') + '/search'), // GET
+				query: ops.get('path') + ('/' + ops.get('name')), // GET
 				create: ops.get('path') + ('/' + ops.get('name')), // POST
 				update: {
 					url: ops.get('path') + ('/' + ops.get('name') + '/{{' + ops.get('id') + '}}'),
@@ -680,9 +680,9 @@ var bmoorComm =
 				url: ops.search,
 				method: 'GET'
 			};
-		} else if (bmoor.isObject(ops.query)) {
-			var methods = ops.query;
-			var keys = Object.keys(methods);
+		} else if (bmoor.isObject(ops.search) && !ops.search.url) {
+			var methods = ops.search,
+			    keys = Object.keys(methods);
 
 			ops.search = {
 				url: function url(ctx) {
@@ -698,16 +698,35 @@ var bmoorComm =
 				},
 				method: 'GET'
 			};
-		} else if (bmoor.isString(ops.query)) {
+		}
+
+		if (bmoor.isString(ops.query)) {
 			var query = ops.query;
 
-			ops.search = {
+			ops.query = {
 				url: function url(ctx) {
 					return query + '?query=' + JSON.stringify(searchEncode(ctx.$args));
 				},
 				method: 'GET'
 			};
-			delete ops.query;
+		} else if (bmoor.isObject(ops.query) && !ops.query.url) {
+			var _methods = ops.query,
+			    _keys = Object.keys(_methods);
+
+			ops.query = {
+				url: function url(ctx) {
+					var dex = null;
+
+					for (var i = 0, c = _keys.length; i < c && dex === null; i++) {
+						if (ctx.$args[_keys[i]]) {
+							dex = i;
+						}
+					}
+
+					return _methods[_keys[dex]];
+				},
+				method: 'GET'
+			};
 		}
 
 		// TODO : a way to have get use all and find by id?

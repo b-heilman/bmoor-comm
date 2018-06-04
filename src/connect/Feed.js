@@ -33,7 +33,7 @@ class Feed {
 				readMany: ops.get('path')+`/${ops.get('name')}/many?id[]={{${ops.get('id')}}}`, // GET
 				all: ops.get('path')+`/${ops.get('name')}`, // GET
 				list: ops.get('path')+`/${ops.get('name')}/list`, // GET
-				query: ops.get('path')+`/${ops.get('name')}/search`, // GET
+				query: ops.get('path')+`/${ops.get('name')}`, // GET
 				create: ops.get('path')+`/${ops.get('name')}`, // POST
 				update: {
 					url: ops.get('path')+`/${ops.get('name')}/{{${ops.get('id')}}}`,
@@ -93,9 +93,9 @@ class Feed {
 				url: ops.search,
 				method: 'GET'
 			};
-		}else if ( bmoor.isObject(ops.query) ){
-			let methods = ops.query;
-			let keys = Object.keys(methods);
+		} else if ( bmoor.isObject(ops.search) && !ops.search.url ){
+			let methods = ops.search,
+				keys = Object.keys(methods);
 
 			ops.search = {
 				url: function( ctx ){
@@ -111,10 +111,12 @@ class Feed {
 				},
 				method: 'GET'
 			};
-		}else if ( bmoor.isString(ops.query) ){
+		}
+
+		if ( bmoor.isString(ops.query) ){
 			let query = ops.query;
 
-			ops.search = {
+			ops.query = {
 				url: function( ctx ){
 					return query + '?query=' + 
 						JSON.stringify( 
@@ -123,8 +125,25 @@ class Feed {
 				},
 				method: 'GET'
 			};
-			delete ops.query;
-		}
+		} else if ( bmoor.isObject(ops.query) && !ops.query.url ){
+			let methods = ops.query,
+				keys = Object.keys(methods);
+
+			ops.query = {
+				url: function( ctx ){
+					var dex = null;
+
+					for( let i = 0, c = keys.length; i < c && dex === null; i++ ){
+						if ( ctx.$args[keys[i]] ){
+							dex = i;
+						}
+					}
+
+					 return methods[ keys[dex] ];
+				},
+				method: 'GET'
+			};
+		} 
 
 		// TODO : a way to have get use all and find by id?
 		if ( settings.inflate ){

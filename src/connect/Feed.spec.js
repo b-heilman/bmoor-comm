@@ -94,7 +94,7 @@ describe('bmoor-comm::connect/Feed', function(){
 				httpMock.expect('/test/search?query={"id":1,"foo":{"bar":"OK"}}').respond('OK');
 				content = {};
 
-				http.search( {id:1, foo:{bar:'OK'}} ).then(function( res ){
+				http.query( {id:1, foo:{bar:'OK'}} ).then(function( res ){
 					expect( res ).toBe( 'OK' );
 					done();
 				});
@@ -131,6 +131,45 @@ describe('bmoor-comm::connect/Feed', function(){
 			var content,
 				http = new Feed({
 					query: {
+						'field1': '/test/search/{{field1}}/{{field3}}',
+						'field2': '/test/search/{{field2}}/{{field3}}'
+					}
+				});
+
+			beforeEach(function(){
+				httpMock.enable();
+			});
+
+			afterEach(function(){
+				httpMock.verifyWasFulfilled();
+			});
+		
+		
+			it('should properly define http.search for field1', function( done ){
+				httpMock.expect('/test/search/ok-1/ok-3').respond('OK');
+				content = {};
+
+				http.query( {field1:'ok-1',field3:'ok-3'} ).then(function( res ){
+					expect( res ).toBe( 'OK' );
+					done();
+				});
+			});
+
+			it('should properly define http.search for field2', function( done ){
+				httpMock.expect('/test/search/ok-2/ok-3').respond('OK');
+				content = {};
+
+				http.query( {field2:'ok-2',field3:'ok-3'} ).then(function( res ){
+					expect( res ).toBe( 'OK' );
+					done();
+				});
+			});
+		});
+
+		describe('via search as an object', function(){
+			var content,
+				http = new Feed({
+					search: {
 						'field1': '/test/search/{{field1}}/{{field3}}',
 						'field2': '/test/search/{{field2}}/{{field3}}'
 					}
@@ -536,13 +575,13 @@ describe('bmoor-comm::connect/Feed', function(){
 			});
 		});
 
-		it('should properly define http.search', function( done ){
-			httpMock.expect('/test/search?query={"foo":"bar"}',null,{
+		it('should properly define http.query', function( done ){
+			httpMock.expect('/test?query={"foo":"bar"}',null,{
 				method: function( m ){ expect(m).toBe('GET'); }
 			})
 			.respond('OK');
 
-			http.search({foo:'bar'}).then(function( res ){
+			http.query({foo:'bar'}).then(function( res ){
 				expect( res ).toBe( 'OK' );
 				done();
 			});
