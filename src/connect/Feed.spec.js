@@ -267,7 +267,11 @@ describe('bmoor-comm::connect/Feed', function(){
 					},
 					read: {
 						url: '/test/get/{{id}}'
-					}
+					},
+					query: '/test/query',
+					create: '/test/create',
+					update: '/test/update/{{id}}',
+					search: '/test/search/{{field1}}/{{field2}}'
 				},
 				{
 					inflate: function( obj ){
@@ -290,6 +294,32 @@ describe('bmoor-comm::connect/Feed', function(){
 			};
 		});
 
+		it('should properly define http.query', function( done ){
+			response = [{ eins: 1, zwei: 2 }];
+			requestUrl = '/test/query?query={"foo":"bar"}';
+
+			http.query({foo:'bar'}).then(function( res ){
+				expect( res ).toEqual([
+					{ eins: 2, zwei: 12 }
+				]);
+
+				done();
+			});
+		});
+
+		it('should properly define http.search', function( done ){
+			response = [{ eins: 1, zwei: 2 }];
+			requestUrl = '/test/search/ok-1/ok-2';
+
+			http.search( {field1:'ok-1',field2:'ok-2'} ).then(function( res ){
+				expect( res ).toEqual([
+					{ eins: 2, zwei: 12 }
+				]);
+
+				done();
+			});
+		});
+
 		it('should work on an all call', function( done ){
 			response = [
 				{ eins: 1, zwei: 2 },
@@ -302,6 +332,7 @@ describe('bmoor-comm::connect/Feed', function(){
 					{ eins: 2, zwei: 12 },
 					{ eins: 11, zwei: 30 }
 				]);
+
 				done();
 			});
 		});
@@ -314,6 +345,33 @@ describe('bmoor-comm::connect/Feed', function(){
 				expect( res ).toEqual(
 					{ eins: 2, zwei: 12 }
 				);
+
+				done();
+			});
+		});
+
+		it('should properly define http.create', function( done ){
+			response = { eins: 1, zwei: 2 };
+			requestUrl = '/test/create';
+
+			http.create( null, {} ).then(function( res ){
+				expect( res ).toEqual(
+					{ eins: 2, zwei: 12 }
+				);
+
+				done();
+			});
+		});
+
+		it('should properly define http.update', function( done ){
+			response = { eins: 1, zwei: 2 };
+			requestUrl = '/test/update/1';
+
+			http.update( {id:1}, {} ).then(function( res ){
+				expect( res ).toEqual(
+					{ eins: 2, zwei: 12 }
+				);
+
 				done();
 			});
 		});

@@ -771,25 +771,41 @@ var bmoorComm =
 			};
 		}
 
-		// TODO : a way to have get use all and find by id?
 		if (settings.inflate) {
-			//ops.read
-			ops.read.success = function (res) {
+			var singular = function singular(res) {
 				return settings.inflate(res);
-			};
-
-			//ops.all
-			ops.all.success = function (res) {
-				var i,
-				    c,
-				    d = res;
-
-				for (i = 0, c = d.length; i < c; i++) {
-					d[i] = settings.inflate(d[i]);
+			},
+			    multiple = function multiple(res) {
+				if (bmoor.isArray(res)) {
+					return res.map(settings.inflate);
+				} else {
+					return settings.inflate(res);
 				}
-
-				return d;
 			};
+
+			if (ops.read && !ops.read.success) {
+				ops.read.success = singular;
+			}
+
+			if (ops.all && !ops.all.success) {
+				ops.all.success = multiple;
+			}
+
+			if (ops.create && !ops.create.success) {
+				ops.create.success = singular;
+			}
+
+			if (ops.update && !ops.update.success) {
+				ops.update.success = singular;
+			}
+
+			if (ops.search && !ops.search.success) {
+				ops.search.success = multiple;
+			}
+
+			if (ops.query && !ops.query.success) {
+				ops.query.success = multiple;
+			}
 		}
 
 		//ops.list
@@ -1163,6 +1179,10 @@ var bmoorComm =
 		    nextSpace,
 		    curSpace = root;
 
+		if (!root) {
+			return root;
+		}
+
 		space = parse(path);
 		if (space.length) {
 			for (i = 0, c = space.length; i < c; i++) {
@@ -1391,6 +1411,28 @@ var bmoorComm =
 	var bmoor = __webpack_require__(9),
 	    regex = {};
 
+	// TODO: put in a polyfill block
+	if (typeof window !== 'undefined' && !bmoor.isFunction(window.CustomEvent)) {
+
+		var _CustomEvent = function _CustomEvent(event, params) {
+			params = params || { bubbles: false, cancelable: false, detail: undefined };
+
+			var evt = document.createEvent('CustomEvent');
+
+			evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail);
+
+			return evt;
+		};
+
+		_CustomEvent.prototype = window.Event.prototype;
+
+		window.CustomEvent = _CustomEvent;
+	}
+
+	if (typeof Element !== 'undefined' && !Element.prototype.matches) {
+		Element.prototype.matches = Element.prototype.msMatchesSelector;
+	}
+
 	function getReg(className) {
 		var reg = regex[className];
 
@@ -1562,99 +1604,6 @@ var bmoorComm =
 		}
 	}
 
-	function triggerEvent(elements, eventName, eventData) {
-		var i, c, doc, node, event, EventClass;
-
-		elements = massage(elements);
-
-		for (i = 0, c = elements.length; i < c; i++) {
-			node = elements[i];
-
-			// Make sure we use the ownerDocument from the provided node to avoid cross-window problems
-			if (node.ownerDocument) {
-				doc = node.ownerDocument;
-			} else if (node.nodeType === 9) {
-				// the node may be the document itself, nodeType 9 = DOCUMENT_NODE
-				doc = node;
-			} else if (typeof document !== 'undefined') {
-				doc = document;
-			} else {
-				throw new Error('Invalid node passed to fireEvent: ' + node.id);
-			}
-
-			if (node.dispatchEvent) {
-				try {
-					// modern, except for IE still? https://developer.mozilla.org/en-US/docs/Web/API/Event
-					// I ain't doing them all
-					// slightly older style, give some backwards compatibility
-					switch (eventName) {
-						case 'click':
-						case 'mousedown':
-						case 'mouseup':
-							EventClass = MouseEvent;
-							break;
-
-						case 'focus':
-						case 'blur':
-							EventClass = FocusEvent; // jshint ignore:line
-							break;
-
-						case 'change':
-						case 'select':
-							EventClass = UIEvent; // jshint ignore:line
-							break;
-
-						default:
-							EventClass = CustomEvent;
-					}
-
-					if (!eventData) {
-						eventData = { 'view': window, 'bubbles': true, 'cancelable': true };
-					} else {
-						if (eventData.bubbles === undefined) {
-							eventData.bubbles = true;
-						}
-						if (eventData.cancelable === undefined) {
-							eventData.cancelable = true;
-						}
-					}
-
-					event = new EventClass(eventName, eventData);
-				} catch (ex) {
-					// slightly older style, give some backwards compatibility
-					switch (eventName) {
-						case 'click':
-						case 'mousedown':
-						case 'mouseup':
-							EventClass = 'MouseEvents';
-							break;
-
-						case 'focus':
-						case 'change':
-						case 'blur':
-						case 'select':
-							EventClass = 'HTMLEvents';
-							break;
-
-						default:
-							EventClass = 'CustomEvent';
-					}
-					event = doc.createEvent(EventClass);
-					event.initEvent(eventName, true, true);
-				}
-
-				event.$synthetic = true; // allow detection of synthetic events
-
-				node.dispatchEvent(event);
-			} else if (node.fireEvent) {
-				// IE-old school style
-				event = doc.createEventObject();
-				event.$synthetic = true; // allow detection of synthetic events
-				node.fireEvent('on' + eventName, event);
-			}
-		}
-	}
-
 	function bringForward(elements) {
 		var i, c, node;
 
@@ -1669,6 +1618,63 @@ var bmoorComm =
 		}
 	}
 
+	function triggerEvent(node, eventName, eventData, eventSettings) {
+		if (node.dispatchEvent) {
+			if (!eventSettings) {
+				eventSettings = { 'view': window, 'bubbles': true, 'cancelable': true };
+			} else {
+				if (eventSettings.bubbles === undefined) {
+					eventSettings.bubbles = true;
+				}
+				if (eventSettings.cancelable === undefined) {
+					eventSettings.cancelable = true;
+				}
+			}
+
+			eventSettings.detail = eventData;
+
+			var event = new CustomEvent(eventName, eventSettings);
+			event.$bmoor = true; // allow detection of bmoor events
+
+			node.dispatchEvent(event);
+		} else if (node.fireEvent) {
+			var doc = void 0;
+
+			if (!bmoor.isString(eventName)) {
+				throw new Error('Can not throw custom events in IE');
+			}
+
+			if (node.ownerDocument) {
+				doc = node.ownerDocument;
+			} else if (node.nodeType === 9) {
+				// the node may be the document itself, nodeType 9 = DOCUMENT_NODE
+				doc = node;
+			} else if (typeof document !== 'undefined') {
+				doc = document;
+			} else {
+				throw new Error('Invalid node passed to fireEvent: ' + node.id);
+			}
+
+			var _event = doc.createEventObject();
+			_event.detail = eventData;
+			_event.$bmoor = true; // allow detection of bmoor events
+
+			node.fireEvent('on' + eventName, _event);
+		} else {
+			throw new Error('We can not trigger events here');
+		}
+	}
+
+	function onEvent(node, eventName, cb, qualifier) {
+		node.addEventListener(eventName, function (event) {
+			if (qualifier && !(event.target || event.srcElement).matches(qualifier)) {
+				return;
+			}
+
+			cb(event.detail, event);
+		});
+	}
+
 	module.exports = {
 		getScrollPosition: getScrollPosition,
 		getBoundryBox: getBoundryBox,
@@ -1678,8 +1684,24 @@ var bmoorComm =
 		centerOn: centerOn,
 		addClass: addClass,
 		removeClass: removeClass,
+		bringForward: bringForward,
 		triggerEvent: triggerEvent,
-		bringForward: bringForward
+		onEvent: onEvent,
+		on: function on(node, settings) {
+			Object.keys(settings).forEach(function (eventName) {
+				var ops = settings[eventName];
+
+				if (bmoor.isFunction(ops)) {
+					onEvent(node, eventName, ops);
+				} else {
+					Object.keys(ops).forEach(function (qualifier) {
+						var cb = ops[qualifier];
+
+						onEvent(node, eventName, cb, qualifier);
+					});
+				}
+			});
+		}
 	};
 
 /***/ },
@@ -1905,44 +1927,6 @@ var bmoorComm =
 	var bmoor = __webpack_require__(9);
 
 	/**
-	 * Search an array for an element, starting at the begining or a specified location
-	 *
-	 * @function indexOf
-	 * @param {array} arr An array to be searched
-	 * @param {*} searchElement Content for which to be searched
-	 * @param {integer} fromIndex The begining index from which to begin the search, defaults to 0
-	 * @return {integer} -1 if not found, otherwise the location of the element
-	 **/
-	function indexOf(arr, searchElement, fromIndex) {
-		if (arr.indexOf) {
-			return arr.indexOf(searchElement, fromIndex);
-		} else {
-			var length = parseInt(arr.length, 0);
-
-			fromIndex = +fromIndex || 0;
-
-			if (Math.abs(fromIndex) === Infinity) {
-				fromIndex = 0;
-			}
-
-			if (fromIndex < 0) {
-				fromIndex += length;
-				if (fromIndex < 0) {
-					fromIndex = 0;
-				}
-			}
-
-			for (; fromIndex < length; fromIndex++) {
-				if (arr[fromIndex] === searchElement) {
-					return fromIndex;
-				}
-			}
-
-			return -1;
-		}
-	}
-
-	/**
 	 * Search an array for an element and remove it, starting at the begining or a specified location
 	 *
 	 * @function remove
@@ -1952,7 +1936,7 @@ var bmoorComm =
 	 * @return {array} array containing removed element
 	 **/
 	function remove(arr, searchElement, fromIndex) {
-		var pos = indexOf(arr, searchElement, fromIndex);
+		var pos = arr.indexOf(searchElement, fromIndex);
 
 		if (pos > -1) {
 			return arr.splice(pos, 1)[0];
@@ -1970,7 +1954,7 @@ var bmoorComm =
 	 **/
 	function removeAll(arr, searchElement, fromIndex) {
 		var r,
-		    pos = indexOf(arr, searchElement, fromIndex);
+		    pos = arr.indexOf(searchElement, fromIndex);
 
 		if (pos > -1) {
 			r = removeAll(arr, searchElement, pos + 1);
@@ -2044,45 +2028,7 @@ var bmoorComm =
 	}
 
 	/**
-	 * Generate a new array whose content is a subset of the intial array, but satisfies the supplied function
-	 *
-	 * @function remove
-	 * @param {array} arr An array to be searched
-	 * @param {*} searchElement Content for which to be searched
-	 * @param {integer} fromIndex The begining index from which to begin the search, defaults to 0
-	 * @return {integer} number of elements removed
-	 **/
-	function filter(arr, func, thisArg) {
-		if (arr.filter) {
-			return arr.filter(func, thisArg);
-		} else {
-			var i,
-			    val,
-			    t = Object(this),
-			    // jshint ignore:line
-			c = parseInt(t.length, 10),
-			    res = [];
-
-			if (!bmoor.isFunction(func)) {
-				throw new Error('func needs to be a function');
-			}
-
-			for (i = 0; i < c; i++) {
-				if (i in t) {
-					val = t[i];
-
-					if (func.call(thisArg, val, i, t)) {
-						res.push(val);
-					}
-				}
-			}
-
-			return res;
-		}
-	}
-
-	/**
-	 * Compare two arrays, 
+	 * Compare two arrays.
 	 *
 	 * @function remove
 	 * @param {array} arr1 An array to be compared
@@ -2134,13 +2080,105 @@ var bmoorComm =
 		};
 	}
 
+	/**
+	 * Create a new array that is completely unique
+	 *
+	 * @function unique
+	 * @param {array} arr The array to be made unique
+	 * @param {function|boolean} sort If boolean === true, array is presorted.  If function, use to sort
+	 **/
+	function unique(arr, sort, uniqueFn) {
+		var rtn = [];
+
+		if (arr.length) {
+			if (sort) {
+				// more efficient because I can presort
+				if (bmoor.isFunction(sort)) {
+					arr = arr.slice(0).sort(sort);
+				}
+
+				var last = void 0;
+
+				for (var i = 0, c = arr.length; i < c; i++) {
+					var d = arr[i],
+					    v = uniqueFn ? uniqueFn(d) : d;
+
+					if (v !== last) {
+						last = v;
+						rtn.push(d);
+					}
+				}
+			} else if (uniqueFn) {
+				var hash = {};
+
+				for (var _i = 0, _c = arr.length; _i < _c; _i++) {
+					var _d = arr[_i],
+					    _v = uniqueFn(_d);
+
+					if (!hash[_v]) {
+						hash[_v] = true;
+						rtn.push(_d);
+					}
+				}
+			} else {
+				// greedy and inefficient
+				for (var _i2 = 0, _c2 = arr.length; _i2 < _c2; _i2++) {
+					var _d2 = arr[_i2];
+
+					if (rtn.indexOf(_d2) === -1) {
+						rtn.push(_d2);
+					}
+				}
+			}
+		}
+
+		return rtn;
+	}
+
+	// I could probably make this sexier, like allow uniqueness algorithm, but I'm keeping it simple for now
+	function intersection(arr1, arr2) {
+		var rtn = [];
+
+		if (arr1.length > arr2.length) {
+			var t = arr1;
+
+			arr1 = arr2;
+			arr2 = t;
+		}
+
+		for (var i = 0, c = arr1.length; i < c; i++) {
+			var d = arr1[i];
+
+			if (arr2.indexOf(d) !== -1) {
+				rtn.push(d);
+			}
+		}
+
+		return rtn;
+	}
+
+	function difference(arr1, arr2) {
+		var rtn = [];
+
+		for (var i = 0, c = arr1.length; i < c; i++) {
+			var d = arr1[i];
+
+			if (arr2.indexOf(d) === -1) {
+				rtn.push(d);
+			}
+		}
+
+		return rtn;
+	}
+
 	module.exports = {
-		indexOf: indexOf,
 		remove: remove,
 		removeAll: removeAll,
 		bisect: bisect,
-		filter: filter,
-		compare: compare
+		compare: compare,
+		unique: unique,
+		intersection: intersection,
+		difference: difference
 	};
 
 /***/ },
@@ -2503,16 +2541,14 @@ var bmoorComm =
 		for (i = 1, c = arguments.length; i < c; i++) {
 			from = arguments[i];
 
-			if (to === from || !from) {
+			if (to === from) {
 				continue;
 			} else if (to && to.merge) {
 				to.merge(from);
+			} else if (!bmoor.isObject(from)) {
+				to = from;
 			} else if (!bmoor.isObject(to)) {
-				if (bmoor.isObject(from)) {
-					to = merge({}, from);
-				} else {
-					to = from;
-				}
+				to = merge({}, from);
 			} else {
 				bmoor.safe(from, m);
 			}
@@ -2801,16 +2837,100 @@ var bmoorComm =
 
 /***/ },
 /* 23 */
-/***/ function(module, exports) {
+/***/ function(module, exports, __webpack_require__) {
 
-	"use strict";
+	'use strict';
+
+	var window = __webpack_require__(15);
 
 	function always(promise, func) {
 		promise.then(func, func);
 		return promise;
 	}
 
+	function stack(calls, settings) {
+
+		if (!calls) {
+			throw new Error('calling stack with no call?');
+		}
+
+		if (!settings) {
+			settings = {};
+		}
+
+		var min = settings.min || 1,
+		    max = settings.max || 10,
+		    limit = settings.limit || 5,
+		    update = window(settings.update || function () {}, min, max);
+
+		return new Promise(function (resolve, reject) {
+			var run,
+			    timeout,
+			    errors = [],
+			    active = 0,
+			    callStack = calls.slice(0);
+
+			function registerError(err) {
+				errors.push(err);
+			}
+
+			function next() {
+				active--;
+
+				update({ active: active, remaining: callStack.length });
+
+				if (callStack.length) {
+					if (!timeout) {
+						timeout = setTimeout(run, 1);
+					}
+				} else if (!active) {
+					if (errors.length) {
+						reject(errors);
+					} else {
+						resolve();
+					}
+				}
+			}
+
+			run = function run() {
+				timeout = null;
+
+				while (active < limit && callStack.length) {
+					var fn = callStack.pop();
+
+					active++;
+
+					fn().catch(registerError).then(next);
+				}
+			};
+
+			run();
+		});
+	}
+
+	function hash(obj) {
+		var rtn = {};
+
+		return Promise.all(Object.keys(obj).map(function (key) {
+			var p = obj[key];
+
+			if (p && p.then) {
+				p.then(function (v) {
+					rtn[key] = v;
+				});
+			} else {
+				rtn[key] = p;
+			}
+
+			return p;
+		})).then(function () {
+			return rtn;
+		});
+	}
+
 	module.exports = {
+		hash: hash,
+		stack: stack,
 		always: always
 	};
 
@@ -2827,11 +2947,12 @@ var bmoorComm =
 	var master = {};
 
 	var Memory = function () {
-		function Memory() {
+		function Memory(name) {
 			_classCallCheck(this, Memory);
 
 			var index = {};
 
+			this.name = name;
 			this.get = function (name) {
 				return index[name];
 			};

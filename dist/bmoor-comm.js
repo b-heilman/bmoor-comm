@@ -729,25 +729,41 @@ var bmoorComm =
 			};
 		}
 
-		// TODO : a way to have get use all and find by id?
 		if (settings.inflate) {
-			//ops.read
-			ops.read.success = function (res) {
+			var singular = function singular(res) {
 				return settings.inflate(res);
-			};
-
-			//ops.all
-			ops.all.success = function (res) {
-				var i,
-				    c,
-				    d = res;
-
-				for (i = 0, c = d.length; i < c; i++) {
-					d[i] = settings.inflate(d[i]);
+			},
+			    multiple = function multiple(res) {
+				if (bmoor.isArray(res)) {
+					return res.map(settings.inflate);
+				} else {
+					return settings.inflate(res);
 				}
-
-				return d;
 			};
+
+			if (ops.read && !ops.read.success) {
+				ops.read.success = singular;
+			}
+
+			if (ops.all && !ops.all.success) {
+				ops.all.success = multiple;
+			}
+
+			if (ops.create && !ops.create.success) {
+				ops.create.success = singular;
+			}
+
+			if (ops.update && !ops.update.success) {
+				ops.update.success = singular;
+			}
+
+			if (ops.search && !ops.search.success) {
+				ops.search.success = multiple;
+			}
+
+			if (ops.query && !ops.query.success) {
+				ops.query.success = multiple;
+			}
 		}
 
 		//ops.list
