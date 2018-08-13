@@ -1,7 +1,7 @@
 describe('bmoor-comm::Requestor', function(){
 	it('should be defined', function(){
 		expect( bmoorComm.Requestor ).toBeDefined();
-		expect( bmoorComm.Requestor.$settings ).toBeDefined();
+		expect( bmoorComm.Requestor.settings ).toBeDefined();
 	});
 
 	it('should instantiate correctly', function(){
@@ -19,7 +19,7 @@ describe('bmoor-comm::Requestor', function(){
 			successCalled = false,
 			getUrl = 'hello/world';
 
-		bmoorComm.Requestor.$settings.fetcher = function( url, ops ){
+		bmoorComm.Requestor.settings.fetcher = function( url, ops ){
 			fetched = true;
 
 			expect( url ).toBe( getUrl );
@@ -43,13 +43,13 @@ describe('bmoor-comm::Requestor', function(){
 		var preloaded,
 			req = new bmoorComm.Requestor({
 				url: getUrl,
-				preload: function( ctx ){
+				preload: function( args ){
 					preloaded = true;
-					expect( ctx.$args ).toBe( t );
+					expect( args ).toBe( t );
 				},
-				encode: function( datum, ctx ){
+				encode: function( datum, args ){
 					expect( datum ).toBe( send );
-					expect( ctx.test ).toBe( true );
+					expect( args.test ).toBe( true );
 
 					return {
 						content: true
@@ -64,12 +64,12 @@ describe('bmoor-comm::Requestor', function(){
 				},
 				always: function( ctx ){
 					alwaysCalled = true;
-					expect( ctx.$args ).toBe( t );
+					expect( ctx.args ).toBe( t );
 				},
 				success: function( data, ctx ){
 					successCalled = true;
 
-					expect( ctx.$args ).toBe( t );
+					expect( ctx.args ).toBe( t );
 					expect( data.some ).toBe( 'value' );
 					
 					return {'was':'successful'};
@@ -101,7 +101,7 @@ describe('bmoor-comm::Requestor', function(){
 			},
 			getUrl = 'world/bar%26all';
 
-		bmoorComm.Requestor.$settings.fetcher = function( url ){
+		bmoorComm.Requestor.settings.fetcher = function( url ){
 			fetched = true;
 			// TODO : do text
 			expect( url ).toBe( getUrl );
@@ -124,7 +124,7 @@ describe('bmoor-comm::Requestor', function(){
 			successCalled = false,
 			getUrl = 'hello/world/2';
 
-		bmoorComm.Requestor.$settings.fetcher = function( url, ops ){
+		bmoorComm.Requestor.settings.fetcher = function( url, ops ){
 			fetched = true;
 
 			expect( url ).toBe( getUrl );
@@ -147,17 +147,17 @@ describe('bmoor-comm::Requestor', function(){
 
 		var preloaded,
 			req = new bmoorComm.Requestor({
-				url: function( ctx ){
-					expect( ctx.$args ).toBe( t );
+				url: function( args ){
+					expect( args ).toBe( t );
 
 					return getUrl;
 				},
-				preload: function( ctx ){
+				preload: function( args ){
 					preloaded = true;
-					expect( ctx.$args ).toBe( t );
+					expect( args ).toBe( t );
 				},
-				encode: function( datum, ctx ){
-					expect( ctx ).toBe( t );
+				encode: function( datum, args ){
+					expect( args ).toBe( t );
 
 					return {
 						content: true
@@ -165,12 +165,12 @@ describe('bmoor-comm::Requestor', function(){
 				},
 				always: function( ctx ){
 					alwaysCalled = true;
-					expect( ctx.$args ).toBe( t );
+					expect( ctx.args ).toBe( t );
 				},
 				success: function( data, ctx ){
 					successCalled = true;
 
-					expect( ctx.$args ).toBe( t );
+					expect( ctx.args ).toBe( t );
 					expect( data.valid ).toBe( true );
 					
 					return {'foo':'bar'};
@@ -201,24 +201,24 @@ describe('bmoor-comm::Requestor', function(){
 			getUrl = 'hello/world/2';
 
 		bmoorComm.Requestor.clearCache();
-		bmoorComm.Requestor.$settings.fetcher = function(){
+		bmoorComm.Requestor.settings.fetcher = function(){
 			fetched = true;
 			return { status: 200 };
 		};
 
 		var preloaded,
 			req = new bmoorComm.Requestor({
-				url: function( ctx ){
-					expect( ctx.$args ).toBe( t );
+				url: function( args ){
+					expect( args ).toBe( t );
 
 					return getUrl;
 				},
-				preload: function( ctx ){
+				preload: function( args ){
 					preloaded = true;
-					expect( ctx.$args ).toBe( t );
+					expect( args ).toBe( t );
 				},
-				encode: function( datum, ctx ){
-					expect( ctx ).toBe( t );
+				encode: function( datum, args ){
+					expect( args ).toBe( t );
 					expect( datum.foo ).toBe( 'bar' );
 
 					return {
@@ -226,7 +226,7 @@ describe('bmoor-comm::Requestor', function(){
 					};
 				},
 				intercept: function( datum, ctx ){
-					expect( ctx.$args ).toBe( t );
+					expect( ctx.args ).toBe( t );
 					expect( datum ).toEqual( { content: true } );
 
 					intercepted = true;
@@ -237,12 +237,12 @@ describe('bmoor-comm::Requestor', function(){
 				},
 				always: function( ctx ){
 					alwaysCalled = true;
-					expect( ctx.$args ).toBe( t );
+					expect( ctx.args ).toBe( t );
 				},
 				success: function( data, ctx ){
 					successCalled = true;
 
-					expect( ctx.$args ).toBe( t );
+					expect( ctx.args ).toBe( t );
 					expect( data.homeStar ).toBe( 'runner' );
 					
 					return {'foo':'bar'};
@@ -274,35 +274,35 @@ describe('bmoor-comm::Requestor', function(){
 			getUrl = 'hello/world/3';
 
 		bmoorComm.Requestor.clearCache();
-		bmoorComm.Requestor.$settings.fetcher = function( url, other ){
+		bmoorComm.Requestor.settings.fetcher = function( url, other ){
 			expect( other.body ).toBe( JSON.stringify(sample) );
 
 			return ES6Promise.reject( new Error('test error') );
 		};
 
 		var req = new bmoorComm.Requestor({
-			url: function( ctx ){
+			url: function( args ){
 				urlCalled = true;
 
-				expect( ctx.$args ).toBe( t );
+				expect( args ).toBe( t );
 
 				return getUrl;
 			},
 			always: function( ctx ){
 				alwaysCalled = true;
-				expect( ctx.$args ).toBe( t );
+				expect( ctx.args ).toBe( t );
 			},
 			success: function( data, ctx ){
 				successCalled = true;
 
-				expect( ctx.$args ).toBe( t );
+				expect( ctx.args ).toBe( t );
 				return {'foo':'bar'};
 			},
 			failure: function( res, ctx ){
 				failureCalled = true;
 
 				expect( res.message ).toBe( 'test error' );
-				expect( ctx.$args ).toBe( t );
+				expect( ctx.args ).toBe( t );
 			}
 		});
 
@@ -375,7 +375,7 @@ describe('bmoor-comm::Requestor', function(){
 					url: 'just/testing'
 				});
 
-			bmoorComm.Requestor.$settings.fetcher = function(){
+			bmoorComm.Requestor.settings.fetcher = function(){
 				return {
 					json: function(){
 						return ES6Promise.resolve({
@@ -403,7 +403,7 @@ describe('bmoor-comm::Requestor', function(){
 					url: 'just/testing'
 				});
 
-			bmoorComm.Requestor.$settings.fetcher = function(){
+			bmoorComm.Requestor.settings.fetcher = function(){
 				return ES6Promise.reject(
 					new Error( 'do not care' )
 				);
@@ -426,7 +426,7 @@ describe('bmoor-comm::Requestor', function(){
 					url: 'just/testing'
 				});
 
-			bmoorComm.Requestor.$settings.fetcher = function(){
+			bmoorComm.Requestor.settings.fetcher = function(){
 				return ES6Promise.reject(
 					new Error( 'do not care' )
 				);
@@ -452,7 +452,7 @@ describe('bmoor-comm::Requestor', function(){
 					}
 				});
 
-			bmoorComm.Requestor.$settings.fetcher = function(){
+			bmoorComm.Requestor.settings.fetcher = function(){
 				return ES6Promise.reject(
 					new Error( 'do not care' )
 				);
@@ -478,7 +478,7 @@ describe('bmoor-comm::Requestor', function(){
 					}
 				});
 
-			bmoorComm.Requestor.$settings.fetcher = function(){
+			bmoorComm.Requestor.settings.fetcher = function(){
 				return ES6Promise.reject(
 					new Error( 'do not care' )
 				);

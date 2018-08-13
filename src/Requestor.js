@@ -11,7 +11,6 @@ settings :
 	- encode : process the parsed in args
 	- preload : run against ctx before send
 	- cached : should the request be cached, cached never clear
-	- context : evaluate variables against this context
 
 	request settings
 	- fetcher : the fetching object, uses api from window.fetch 
@@ -86,7 +85,6 @@ class Requestor {
 			prep = this.getSetting('prep'),
 			cache = this.getSetting('cache'),
 			method = this.getSetting('method').toUpperCase(),
-			context = this.getSetting('context'),
 			deferred = this.getSetting('deferred');
 
 		if ( !args ){
@@ -99,18 +97,15 @@ class Requestor {
 
 		if ( prep ){
 			ctx = Object.create( prep(args) );
-			ctx.$args = args;
+			ctx.args = args;
 		}else if ( args ){
-			ctx = Object.create( args );
-			ctx.$args = args;
-		}else{
-			ctx = { $args: {} };
+			ctx = { args: args||{} };
 		}
 
-		ctx.$settings = settings;
+		ctx.settings = settings;
 
 		// some helping functions
-		ctx.$getSetting = ( setting ) => {
+		ctx.getSetting = ( setting ) => {
 			if ( setting in settings ){
 				return settings[ setting ];
 			}else{
@@ -119,32 +114,33 @@ class Requestor {
 		};
 
 		// allowed to be overridden on a per call level
-		cached = ctx.$getSetting('cached');
+		cached = ctx.getSetting('cached');
 
-		ctx.$evalSetting = ( setting ) => {
-			var v = ctx.$getSetting( setting );
+		ctx.evalSetting = ( setting ) => {
+			var v = ctx.getSetting(setting);
 
 			if ( bmoor.isFunction(v) ){
-				return v.call( context, ctx, datum );
+				return v(ctx.args, datum, ctx);
 			}else{
 				return v;
 			}
 		};
 		
 		// translate the url for request
-		url = ctx.$getSetting('url');
+		url = ctx.getSetting('url');
 		if ( bmoor.isFunction(url) ){
-			url = url.call( context, ctx, datum );
+			url = url(ctx.args, datum, ctx);
 		}
 
 		// allow all strings to be called via formatter
-		url = ( new Url(url) ).go.call( context, ctx, datum );
+		url = ( new Url(url) ).go(ctx.args, datum, ctx);
 
 		reference = method + '::' + url;
 		
-		ctx.$ref = reference;
+		ctx.ref = reference;
 
-		return Promise.resolve( ctx.$evalSetting('preload') ).then( () => {
+		return Promise.resolve( ctx.evalSetting('preload') )
+		.then( () => {
 			var res;
 			
 			if ( cached && cache[reference] ){
@@ -152,7 +148,10 @@ class Requestor {
 			}else if ( deferred[reference] ){
 				return deferred[ reference ];
 			}else{
-				res = this.response( this.request(ctx,datum,url,method), ctx );
+				res = this.response(
+					this.request(ctx, datum, url, method),
+					ctx 
+				);
 				
 				if ( method === 'GET' ){
 					deferred[ reference ] = res;
@@ -172,18 +171,19 @@ class Requestor {
 	request( ctx, datum, url, method ){
 		var req,
 			fetched,
-			comm = ctx.$getSetting('comm'),
-			code = ctx.$getSetting('code'),
-			encode = ctx.$getSetting('encode'),
+			comm = ctx.getSetting('comm'),
+			code = ctx.getSetting('code'),
+			encode = ctx.getSetting('encode'),
 			fetcher = this.getSetting('fetcher'),
-			headers = ctx.$evalSetting('headers'),
-			intercept = ctx.$getSetting('intercept');
+			headers = ctx.evalSetting('headers'),
+			intercept = ctx.getSetting('intercept');
 		
 		if ( encode ){
-			datum = encode( datum, ctx.$args );
+			datum = encode( datum, ctx.args, ctx );
 		}
+		ctx.payload = datum;
 
-		events.trigger( 'request', url, datum, ctx.$settings );
+		events.trigger( 'request', url, datum, ctx.settings, ctx );
 
 		if ( intercept ) {
 			if ( bmoor.isFunction(intercept) ){
@@ -235,26 +235,25 @@ class Requestor {
 	response( q, ctx ){
 		var t,
 			response,
-			decode = ctx.$getSetting('decode'),
-			always = ctx.$getSetting('always'),
-			success = ctx.$getSetting('success'),
-			failure = ctx.$getSetting('failure'),
-			context = ctx.$getSetting('context'),
-			validation = ctx.$getSetting('validation');
+			decode = ctx.getSetting('decode'),
+			always = ctx.getSetting('always'),
+			success = ctx.getSetting('success'),
+			failure = ctx.getSetting('failure'),
+			validation = ctx.getSetting('validation');
 		
 		t = bmoor.promise.always(
 			q,
 			function(){
-				events.trigger( 'response', ctx.$settings );
+				events.trigger( 'response', ctx.settings, ctx );
 
 				if ( always ){
-					always.call( context, ctx );
+					always( ctx );
 				}
 			}
 		).then(function( fetched ){
 			// we hava successful transmition
 			var req,
-				code = ctx.$getSetting('code');
+				code = ctx.getSetting('code');
 
 			response = fetched;
 
@@ -285,27 +284,27 @@ class Requestor {
 
 			return Promise.resolve(req).then(function( res ){
 				if ( validation && 
-					!validation.call(context,res,ctx,fetched)
+					!validation(res, ctx, fetched)
 				){
 					throw new Error('Requestor::validation');
 				} 
 				
 				return success ?
-					success.call( context, res, ctx ) : res;
+					success(res, ctx) : res;
 			});
 		});
 
 		t.then(
 			function( res ){
-				events.trigger( 'success', res, response, ctx.$settings );
+				events.trigger('success', res, response, ctx.settings, ctx);
 			},
 			function( error ){
-				events.trigger( 'failure', error, response, ctx.$settings );
+				events.trigger('failure', error, response, ctx.settings, ctx);
 
 				if ( failure ){
 					error.response = response;
 
-					failure.call( context, error, ctx );
+					failure(error, ctx);
 				}
 			}
 		);
@@ -314,21 +313,21 @@ class Requestor {
 	}
 
 	close( ctx ){
-		var linger = ctx.$getSetting('linger'),
+		var linger = ctx.getSetting('linger'),
 			deferred = this.getSetting('deferred');
 		
 		if ( linger !== null ){
 			setTimeout(function(){
-				deferred[ ctx.$ref ] = null;
+				deferred[ctx.ref] = null;
 			}, linger);
 		}else{
-			deferred[ ctx.$ref ] = null;
+			deferred[ctx.ref] = null;
 		}
 	}
 }
 
-Requestor.$settings = defaultSettings;
 Requestor.events = events;
+Requestor.settings = defaultSettings;
 Requestor.clearCache = function(){
 	requestors.forEach(function( r ){
 		r.clearCache();

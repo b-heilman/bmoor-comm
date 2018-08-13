@@ -8,7 +8,7 @@ describe('bmoor-comm::restful', function(){
 			response = { hello: 'world' };
 
 		bmoorComm.Requestor.clearCache();
-		bmoorComm.Requestor.$settings.fetcher = function( url ){
+		bmoorComm.Requestor.settings.fetcher = function( url ){
 			verify( url );
 			called = true;
 			return ES6Promise.resolve({
@@ -43,7 +43,7 @@ describe('bmoor-comm::restful', function(){
 			response = { hello: 'world' };
 
 		bmoorComm.Requestor.clearCache();
-		bmoorComm.Requestor.$settings.fetcher = function( url ){
+		bmoorComm.Requestor.settings.fetcher = function( url ){
 			verify( url );
 			called = true;
 			return ES6Promise.resolve({
@@ -56,8 +56,8 @@ describe('bmoor-comm::restful', function(){
 
 		bmoorComm.restful( stream, {
 			get: {
-				url: function( ctx ){
-					return '/users/'+ctx.team+'/'+ctx.id;
+				url: function( args ){
+					return '/users/'+args.team+'/'+args.id;
 				},
 				interface: function( team, id ){
 					return {

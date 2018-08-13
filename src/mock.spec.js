@@ -10,7 +10,7 @@ describe('bmoor-comm::mock', function(){
 			response = { hello: 'world' },
 			mock = { foo: 'bar' };
 
-		bmoorComm.Requestor.$settings.fetcher = function( url ){
+		bmoorComm.Requestor.settings.fetcher = function( url ){
 			verify( url );
 			called = true;
 			return ES6Promise.resolve({

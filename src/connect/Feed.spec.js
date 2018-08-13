@@ -232,7 +232,7 @@ describe('bmoor-comm::connect/Feed', function(){
 			expect( http.hello ).toBe('world');
 
 			bmoorComm.Requestor.clearCache();
-			bmoorComm.Requestor.$settings.fetcher = function(){
+			bmoorComm.Requestor.settings.fetcher = function(){
 				wasCalled = true;
 
 				return ES6Promise.resolve({
@@ -282,7 +282,7 @@ describe('bmoor-comm::connect/Feed', function(){
 
 		beforeEach(function(){
 			bmoorComm.Requestor.clearCache();
-			bmoorComm.Requestor.$settings.fetcher = function( url ){
+			bmoorComm.Requestor.settings.fetcher = function( url ){
 				expect( url ).toBe( requestUrl );
 
 				return ES6Promise.resolve({
@@ -398,7 +398,7 @@ describe('bmoor-comm::connect/Feed', function(){
 
 		beforeEach(function(){
 			bmoorComm.Requestor.clearCache();
-			bmoorComm.Requestor.$settings.fetcher = function( url, obj ){
+			bmoorComm.Requestor.settings.fetcher = function( url, obj ){
 				expect( url ).toEqual( requestUrl );
 				expect( obj.body ).toEqual( 
 					JSON.stringify(requestObj)
@@ -443,7 +443,7 @@ describe('bmoor-comm::connect/Feed', function(){
 
 		beforeEach(function(){
 			bmoorComm.Requestor.clearCache();
-			bmoorComm.Requestor.$settings.fetcher = function( url, obj ){
+			bmoorComm.Requestor.settings.fetcher = function( url, obj ){
 				return fetch( url, obj );
 			};
 
@@ -510,7 +510,7 @@ describe('bmoor-comm::connect/Feed', function(){
 
 		beforeEach(function(){
 			bmoorComm.Requestor.clearCache();
-			bmoorComm.Requestor.$settings.fetcher = function( url, obj ){
+			bmoorComm.Requestor.settings.fetcher = function( url, obj ){
 				return fetch( url, obj );
 			};
 

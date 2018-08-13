@@ -6,7 +6,7 @@ class RequestorMock {
 		this.callStack = [];
 
 		Requestor.clearCache();
-		Requestor.$settings.fetcher = ( url, ops ) => {
+		Requestor.settings.fetcher = ( url, ops ) => {
 			var t,
 				p;
 

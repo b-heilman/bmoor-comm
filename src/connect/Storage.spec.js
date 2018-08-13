@@ -62,7 +62,7 @@ describe('bmoor-comm::connect/Storage', function(){
 			wasCalled = false;
 
 			bmoorComm.Requestor.clearCache();
-			bmoorComm.Requestor.$settings.fetcher = function( url ){
+			bmoorComm.Requestor.settings.fetcher = function( url ){
 				wasCalled = true;
 
 				expect( url ).toBe( requestUrl );

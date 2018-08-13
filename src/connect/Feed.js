@@ -99,11 +99,11 @@ class Feed {
 				keys = Object.keys(methods);
 
 			ops.search = {
-				url: function( ctx ){
+				url: function( args ){
 					var dex = null;
 
 					for( let i = 0, c = keys.length; i < c && dex === null; i++ ){
-						if ( ctx.$args[keys[i]] ){
+						if ( args[keys[i]] ){
 							dex = i;
 						}
 					}
@@ -118,10 +118,10 @@ class Feed {
 			let query = ops.query;
 
 			ops.query = {
-				url: function( ctx ){
+				url: function( args ){
 					return query + '?query=' + 
 						JSON.stringify( 
-							searchEncode( ctx.$args ) 
+							searchEncode( args ) 
 						);
 				},
 				method: 'GET'
@@ -131,11 +131,11 @@ class Feed {
 				keys = Object.keys(methods);
 
 			ops.query = {
-				url: function( ctx ){
+				url: function( args ){
 					var dex = null;
 
 					for( let i = 0, c = keys.length; i < c && dex === null; i++ ){
-						if ( ctx.$args[keys[i]] ){
+						if ( args[keys[i]] ){
 							dex = i;
 						}
 					}
