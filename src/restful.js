@@ -3,15 +3,20 @@ var bmoor = require('bmoor'),
 
 module.exports = function( obj, definition ){
 	bmoor.each( definition, function( def, name ){
+		let defaults = {};
 		var fn,
 			req;
 
 		if ( def ){ // at least protect from undefined and null
-			if ( bmoor.isFunction(def) ){
+			if (bmoor.isFunction(def)) {
 				obj[name] = def;
 			}else{
-				if ( bmoor.isString(def) ){
+				if (bmoor.isString(def)) {
 					def = { url: def };
+				}
+
+				if (def.defaultSettings) {
+					defaults = def.defaultSettings;
 				}
 
 				req = new Requestor( def );
@@ -23,7 +28,7 @@ module.exports = function( obj, definition ){
 						return req.go(
 							commands.args,
 							commands.datum,
-							commands.settings
+							Object.assign({}, defaults, commands.settings)
 						);
 					};
 				}else{
@@ -31,7 +36,7 @@ module.exports = function( obj, definition ){
 						return req.go(
 							args,
 							datum,
-							settings
+							Object.assign({}, defaults, settings)
 						);
 					};
 				}
