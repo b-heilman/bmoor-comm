@@ -11,6 +11,8 @@ settings :
 	- encode : process the parsed in args
 	- preload : run against ctx before send
 	- cached : should the request be cached, cached never clear
+	- batched : requests made closely together can be batched use the same promise
+	- linger : how long does a batch take to clear
 
 	request settings
 	- fetcher : the fetching object, uses api from window.fetch 
@@ -27,7 +29,7 @@ settings :
 	- failure
 
 	close
-	- linger : how long does a request remain deferred
+	
 */
 
 var events = new Eventing(),
@@ -36,7 +38,9 @@ var events = new Eventing(),
 		comm : {},
 		linger : null,
 		headers : {},
-		method: 'GET'
+		method: 'GET',
+		cached: false,
+		batched: true
 	};
 
 class Requestor {
@@ -80,6 +84,7 @@ class Requestor {
 	go( args, datum, settings ){
 		var ctx,
 			cached,
+			batched,
 			reference,
 			url = this.getSetting('url'),
 			prep = this.getSetting('prep'),
@@ -115,6 +120,7 @@ class Requestor {
 
 		// allowed to be overridden on a per call level
 		cached = ctx.getSetting('cached');
+		batched = ctx.getSetting('batched');
 
 		ctx.evalSetting = ( setting ) => {
 			var v = ctx.getSetting(setting);
@@ -143,9 +149,9 @@ class Requestor {
 		.then( () => {
 			var res;
 			
-			if ( cached && cache[reference] ){
+			if (cached && cache[reference]){
 				return cache[ reference ];
-			}else if ( deferred[reference] ){
+			}else if ( batched && deferred[reference] ){
 				return deferred[ reference ];
 			}else{
 				res = this.response(
@@ -153,11 +159,11 @@ class Requestor {
 					ctx 
 				);
 				
-				if ( method === 'GET' ){
+				if ( batched && method === 'GET' ){
 					deferred[ reference ] = res;
 				}
 				
-				if ( settings.cached ){
+				if ( cached ){
 					cache[ reference ] = res;
 				}
 
