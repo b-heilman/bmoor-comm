@@ -10,6 +10,14 @@ module.exports = function(config) {
         // testing framework to use (jasmine/mocha/qunit/...)
         frameworks: ['jasmine'],
 
+        plugins: [
+            require('karma-webpack'),
+            'karma-jasmine',
+            require('karma-sourcemap-loader'),
+            'karma-chrome-launcher',
+            'karma-ie-launcher'
+        ],
+
         // list of files / patterns to load in the browser
         files: [
             'node_modules/bmoor/dist/bmoor.js',
@@ -26,7 +34,7 @@ module.exports = function(config) {
         preprocessors: {
             'lib/polyfills.js': ['webpack'],
             // main test files
-            'src/**/*.spec.js': ['webpack']
+            'src/**/*.spec.js': ['webpack', 'sourcemap']
         },
 
         webpack: {
@@ -51,13 +59,6 @@ module.exports = function(config) {
                 chunks: false
             }
         },
-
-        plugins: [
-            require("karma-webpack"),
-            'karma-jasmine',
-            'karma-chrome-launcher',
-            'karma-ie-launcher'
-        ],
 
         client: {
             captureConsole: true

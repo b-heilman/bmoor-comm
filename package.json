@@ -1,8 +1,8 @@
 {
   "name": "bmoor-comm",
-  "version": "0.4.18",
+  "version": "0.5.0",
   "author": "Brian Heilman <das.ist.junk@gmail.com>",
-  "description": "A way for bmoor to get around town",
+  "description": "Data communication",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -17,7 +17,8 @@
     "babel-polyfill": "^6.26.0",
     "bmoor": "^0.4.10",
     "es6-promise": "4.1.0",
-    "formdata-polyfill": "^3.0.11"
+    "formdata-polyfill": "^3.0.11",
+    "url-search-params-polyfill": "^5.1.0"
   },
   "devDependencies": {
     "babel": "6.5.2",
@@ -42,6 +43,7 @@
     "karma-ie-launcher": "^1.0.0",
     "karma-jasmine": "0.3.8",
     "karma-phantomjs-launcher": "1.0.0",
+    "karma-sourcemap-loader": "^0.3.7",
     "karma-webpack": "^2.0.13",
     "map-stream": "0.0.6",
     "multer": "^1.3.1",

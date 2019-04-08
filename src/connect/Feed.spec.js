@@ -1,3 +1,4 @@
+
 describe('bmoor-comm::connect/Feed', function(){
 	var Feed = bmoorComm.connect.Feed,
 		Model = bmoorComm.connect.model.Model,
@@ -29,7 +30,7 @@ describe('bmoor-comm::connect/Feed', function(){
 					done();
 				},
 				function( ex ){
-					console.log( 'Feed.spec :: test - fail', ex );
+					console.log( 'Feed.spec :: test - fail', ex.message );
 				}
 			);
 		});
@@ -78,7 +79,7 @@ describe('bmoor-comm::connect/Feed', function(){
 		describe('via query', function(){
 			var content,
 				http = new Feed({
-					query: '/test/search'
+					query: '/test/query'
 				});
 
 			beforeEach(function(){
@@ -90,11 +91,11 @@ describe('bmoor-comm::connect/Feed', function(){
 			});
 		
 		
-			it('should properly define http.search', function( done ){
-				httpMock.expect('/test/search?query={"id":1,"foo":{"bar":"OK"}}').respond('OK');
+			it('should properly define http.query', function( done ){
+				httpMock.expect('/test/query?id=1&foo.bar=OK').respond('OK');
 				content = {};
 
-				http.query( {id:1, foo:{bar:'OK'}} ).then(function( res ){
+				http.query({id:1, foo:{bar:'OK'}}).then(function( res ){
 					expect( res ).toBe( 'OK' );
 					done();
 				});
@@ -120,46 +121,7 @@ describe('bmoor-comm::connect/Feed', function(){
 				httpMock.expect('/test/search/ok-1/ok-2').respond('OK');
 				content = {};
 
-				http.search( {field1:'ok-1',field2:'ok-2'} ).then(function( res ){
-					expect( res ).toBe( 'OK' );
-					done();
-				});
-			});
-		});
-
-		describe('via query as an object', function(){
-			var content,
-				http = new Feed({
-					query: {
-						'field1': '/test/search/{{field1}}/{{field3}}',
-						'field2': '/test/search/{{field2}}/{{field3}}'
-					}
-				});
-
-			beforeEach(function(){
-				httpMock.enable();
-			});
-
-			afterEach(function(){
-				httpMock.verifyWasFulfilled();
-			});
-		
-		
-			it('should properly define http.search for field1', function( done ){
-				httpMock.expect('/test/search/ok-1/ok-3').respond('OK');
-				content = {};
-
-				http.query( {field1:'ok-1',field3:'ok-3'} ).then(function( res ){
-					expect( res ).toBe( 'OK' );
-					done();
-				});
-			});
-
-			it('should properly define http.search for field2', function( done ){
-				httpMock.expect('/test/search/ok-2/ok-3').respond('OK');
-				content = {};
-
-				http.query( {field2:'ok-2',field3:'ok-3'} ).then(function( res ){
+				http.search({field1:'ok-1',field2:'ok-2'}).then(function( res ){
 					expect( res ).toBe( 'OK' );
 					done();
 				});
@@ -188,7 +150,7 @@ describe('bmoor-comm::connect/Feed', function(){
 				httpMock.expect('/test/search/ok-1/ok-3').respond('OK');
 				content = {};
 
-				http.search( {field1:'ok-1',field3:'ok-3'} ).then(function( res ){
+				http.search({field1:'ok-1', field3:'ok-3'}).then(function( res ){
 					expect( res ).toBe( 'OK' );
 					done();
 				});
@@ -198,7 +160,7 @@ describe('bmoor-comm::connect/Feed', function(){
 				httpMock.expect('/test/search/ok-2/ok-3').respond('OK');
 				content = {};
 
-				http.search( {field2:'ok-2',field3:'ok-3'} ).then(function( res ){
+				http.search({field2:'ok-2', field3:'ok-3'}).then(function( res ){
 					expect( res ).toBe( 'OK' );
 					done();
 				});
@@ -252,7 +214,11 @@ describe('bmoor-comm::connect/Feed', function(){
 
 				done();
 			},function( ex ){
-				console.log( 'Feed.spec :: test - fail', ex );
+				console.log(ex.message);
+				console.log(ex.stack);
+
+				expect(1).toBe(0);
+				done();
 			});
 		});
 	});
@@ -296,7 +262,7 @@ describe('bmoor-comm::connect/Feed', function(){
 
 		it('should properly define http.query', function( done ){
 			response = [{ eins: 1, zwei: 2 }];
-			requestUrl = '/test/query?query={"foo":"bar"}';
+			requestUrl = '/test/query?foo=bar';
 
 			http.query({foo:'bar'}).then(function( res ){
 				expect( res ).toEqual([
@@ -522,7 +488,8 @@ describe('bmoor-comm::connect/Feed', function(){
 		});
 
 		it('should accept single values as ids', function( done ){
-			comm.readMany([1,2,3,4]).then(function( res ){
+			comm.readMany([1,2,3,4])
+			.then(function( res ){
 				expect( res.length ).toBe( 4 );
 
 				expect( res[0].id ).toBe( 1 );
@@ -551,6 +518,57 @@ describe('bmoor-comm::connect/Feed', function(){
 				done();
 			});
 		});
+
+		describe('route url generation', function(){
+			it('should work with an array of ids', function(done){
+				httpMock.expect('http://localhost:10001/test-many?test[]=1&test[]=2&test[]=3&test[]=4')
+				.respond([{foo:'bar'}]);
+
+				comm.readMany([1,2,3,4])
+				.then(() => {
+					done();
+				}).catch(ex => {
+					console.log(ex.message);
+					expect(0).toBe(1);
+
+					done();
+				});
+			});
+
+			it('should work with an array of objects', function(done){
+				httpMock.expect('http://localhost:10001/test-many?test[]=1&test[]=2&test[]=3&test[]=4')
+				.respond([{foo:'bar'}]);
+
+				comm.readMany([
+					{myId:1},
+					{myId:2},
+					{myId:3},
+					{myId:4}
+				]).then(() => {
+					done();
+				}).catch(ex => {
+					console.log(ex.message);
+					expect(0).toBe(1);
+
+					done();
+				});
+			});
+
+			it('should work with an array as the id', function(done){
+				httpMock.expect('http://localhost:10001/test-many?test[]=1,2,3,4')
+				.respond([{foo:'bar'}]);
+
+				comm.readMany({myId:[1,2,3,4]})
+				.then(() => {
+					done();
+				}).catch(ex => {
+					console.log(ex.message);
+					expect(0).toBe(1);
+
+					done();
+				});
+			});
+		});
 	});
 
 	describe('using a connect/Model', function(){
@@ -574,7 +592,7 @@ describe('bmoor-comm::connect/Feed', function(){
 					done();
 				},
 				function( ex ){
-					console.log( 'Feed.spec :: test - fail', ex );
+					console.log( 'Feed.spec :: test - fail', ex.message );
 				}
 			);
 		});
@@ -590,7 +608,7 @@ describe('bmoor-comm::connect/Feed', function(){
 					done();
 				},
 				function( ex ){
-					console.log( 'Feed.spec :: test - fail', ex );
+					console.log( 'Feed.spec :: test - fail', ex.message );
 				}
 			);
 		});
@@ -606,7 +624,7 @@ describe('bmoor-comm::connect/Feed', function(){
 					done();
 				},
 				function( ex ){
-					console.log( 'Feed.spec :: test - fail', ex );
+					console.log( 'Feed.spec :: test - fail', ex.message );
 				}
 			);
 		});
@@ -634,7 +652,7 @@ describe('bmoor-comm::connect/Feed', function(){
 		});
 
 		it('should properly define http.query', function( done ){
-			httpMock.expect('/test?query={"foo":"bar"}',null,{
+			httpMock.expect('/test?foo=bar',null,{
 				method: function( m ){ expect(m).toBe('GET'); }
 			})
 			.respond('OK');

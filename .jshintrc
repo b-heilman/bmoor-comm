@@ -25,6 +25,7 @@
 		"expect": false,
 		"bmoorComm": false,
 		"afterEach": false,
-		"beforeEach": false
+		"beforeEach": false,
+		"URLSearchParams": false
 	}
 }
