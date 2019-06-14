@@ -14,14 +14,15 @@ class RequestorMock {
 			if ( this.callStack.length ){
 				t = this.callStack.shift();
 
-				expect( t.url ).toEqual( url );
-				if ( t.params ){
-					expect( t.params ).toEqual( ops.body );
+				expect(t.url).toEqual(url);
+
+				if (t.params){
+					expect(t.params).toEqual(JSON.parse(ops.body));
 				}
 
-				if ( t.other ){
-					Object.keys( t.other ).forEach(function( key ){
-						t.other[key]( ops[key] );
+				if (t.other){
+					Object.keys(t.other).forEach(function( key ){
+						t.other[key](ops[key]);
 					});
 				}
 
@@ -34,7 +35,7 @@ class RequestorMock {
 
 				return p;
 			}else{
-				expect( 'callStack.length' ).toBe( 'not zero' );
+				expect('callStack.length').toBe('not zero');
 			}
 		};
 	}

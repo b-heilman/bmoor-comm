@@ -5378,11 +5378,7 @@ var bmoorComm =
 
 	'use strict';
 
-	var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
-
 	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -5399,19 +5395,18 @@ var bmoorComm =
 		/**
 	  * {
 	  *   [service]: {
-	  *     read:
-	  *     readMany:
-	  *     all:
-	  *     query:
-	  *     joins: {
-	  *       [otherTable] : {
-	  *         url:
-	  *         param:
-	  *       }
+	  *     routes: {
+	  *     		read:
+	  *     		readMany:
+	  *     		all:
+	  *     		query:,
+	  *     		create:
+	  *     		update:
+	  *     		delete: 
 	  *     },
-	  *     create:
-	  *     update:
-	  *     delete: 
+	  *     joins: {
+	  *       [param] : url:
+	  *     }
 	  *   }
 	  * }
 	  */
@@ -5423,33 +5418,35 @@ var bmoorComm =
 				for (var service in config) {
 					var feed = this.getFeed(service);
 
-					var routes = config[service];
-					feed.addRoutes({
-						read: routes.read ? this.root + '/' + service + routes.read : null,
-						readMany: routes.readMany ? this.root + '/' + service + routes.readMany : null,
-						all: routes.all ? this.root + '/' + service + routes.all : null,
-						query: routes.query ? this.root + '/' + service + routes.query : null,
-						create: routes.create ? this.root + '/' + service + routes.create : null,
-						update: routes.update ? this.root + '/' + service + routes.update : null,
-						delete: routes.delete ? this.root + '/' + service + routes.delete : null
-					});
+					var _config$service = config[service],
+					    routes = _config$service.routes,
+					    joins = _config$service.joins;
 
-					if (routes.joins) {
-						for (var join in routes.joins) {
-							var url = routes.joins[join];
 
-							var _join$split = join.split(':'),
-							    _join$split2 = _slicedToArray(_join$split, 2),
-							    otherService = _join$split2[0],
-							    param = _join$split2[1];
-
-							var otherFeed = this.getFeed(otherService);
-
-							var search = _defineProperty({}, service + (param ? ':' + param : ''), this.root + '/' + service + url);
-
-							otherFeed.addRoutes({ search: search });
-						}
+					if (routes) {
+						routes = {
+							read: routes.read ? this.root + routes.read : null,
+							readMany: routes.readMany ? this.root + routes.readMany : null,
+							all: routes.all ? this.root + routes.all : null,
+							query: routes.query ? this.root + routes.query : null,
+							create: routes.create ? this.root + routes.create : null,
+							update: routes.update ? this.root + routes.update : null,
+							delete: routes.delete ? this.root + routes.delete : null
+						};
+					} else {
+						routes = {};
 					}
+
+					if (joins) {
+						var search = {};
+						for (var join in joins) {
+							search[join] = this.root + joins[join];
+						}
+
+						routes.search = search;
+					}
+
+					feed.addRoutes(routes);
 				}
 			}
 		}, {
@@ -5506,8 +5503,9 @@ var bmoorComm =
 						t = _this.callStack.shift();
 
 						expect(t.url).toEqual(url);
+
 						if (t.params) {
-							expect(t.params).toEqual(ops.body);
+							expect(t.params).toEqual(JSON.parse(ops.body));
 						}
 
 						if (t.other) {

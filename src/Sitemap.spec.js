@@ -18,7 +18,9 @@ describe('bmoor-comm::Sitemap', function(){
 
 		sitemap.ingest({
 			'foo-bar': {
-				read: '/read/{{id}}'
+				routes:{
+					read: 'foo-bar/read/{{id}}'
+				}
 			}
 		});
 
@@ -34,7 +36,9 @@ describe('bmoor-comm::Sitemap', function(){
 
 			sitemap.ingest({
 				'foo-bar': {
-					read: '/read/{{id}}'
+					routes:{
+						read: '/foo-bar/read/{{id}}'
+					}
 				}
 			});
 		});
@@ -66,17 +70,24 @@ describe('bmoor-comm::Sitemap', function(){
 
 			sitemap.ingest({
 				'table-1': {
-					read: '/{{id}}',
-					joins: {
-						'table-2': '/{{id}}/table-2',
-						'table-3': '/{{id}}/table-3'
+					routes:{
+						read: '/table-1/{{id}}'
 					}
 				},
 				'table-2': {
 					joins: {
-						'table-3': '/{{id}}/table-3',
-						'table-4:rootId': '/{{id}}/table-4/rootId',
-						'table-4:otherId': '/{{id}}/table-4/otherId'
+						'table1Id': '/table-1/{{table1Id}}/table-2'
+					}
+				},
+				'table-3': {
+					joins: {
+						table1Id: '/table-1/{{table1Id}}/table-2'
+					}
+				},
+				'table-4': {
+					joins: {
+						rootId: '/table-2/{{rootId}}/table-4/rootId',
+						otherId: '/table-2/{{otherId}}/table-4/otherId'
 					}
 				}
 			});
@@ -94,8 +105,7 @@ describe('bmoor-comm::Sitemap', function(){
 			.respond({hello: 'world'});
 
 			sitemap.getFeed('table-2').search({
-				'table-1': true,
-				id: 123
+				table1Id: 123
 			}).then(res => {
 				expect(res.hello).toBe('world');
 				done();
@@ -113,8 +123,7 @@ describe('bmoor-comm::Sitemap', function(){
 			.respond({hello: 'world'});
 
 			sitemap.getFeed('table-4').search({
-				'table-2:rootId': true,
-				id: 123
+				rootId: 123
 			}).then(res => {
 				expect(res.hello).toBe('world');
 				done();

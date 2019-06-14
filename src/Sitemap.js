@@ -10,19 +10,18 @@ class Sitemap {
 	/**
 	 * {
 	 *   [service]: {
-	 *     read:
-	 *     readMany:
-	 *     all:
-	 *     query:
-	 *     joins: {
-	 *       [otherTable] : {
-	 *         url:
-	 *         param:
-	 *       }
+	 *     routes: {
+	 *     		read:
+	 *     		readMany:
+	 *     		all:
+	 *     		query:,
+	 *     		create:
+	 *     		update:
+	 *     		delete: 
 	 *     },
-	 *     create:
-	 *     update:
-	 *     delete: 
+	 *     joins: {
+	 *       [param] : url:
+	 *     }
 	 *   }
 	 * }
 	 */
@@ -30,30 +29,32 @@ class Sitemap {
 		for(let service in config){
 			let feed = this.getFeed(service);
 
-			let routes = config[service];
-			feed.addRoutes({
-				read: routes.read ? this.root+'/'+service+routes.read : null,
-				readMany: routes.readMany ? this.root+'/'+service+routes.readMany : null,
-				all: routes.all ? this.root+'/'+service+routes.all : null,
-				query: routes.query ? this.root+'/'+service+routes.query : null,
-				create: routes.create ? this.root+'/'+service+routes.create : null,
-				update: routes.update ? this.root+'/'+service+routes.update : null,
-				delete: routes.delete ? this.root+'/'+service+routes.delete : null
-			});
+			let {routes, joins} = config[service];
 
-			if (routes.joins){
-				for(let join in routes.joins){
-					let url = routes.joins[join];
-					let [otherService, param] = join.split(':');
-					let otherFeed = this.getFeed(otherService);
-
-					let search =  {
-						[service+(param?':'+param:'')]: this.root+'/'+service+url
-					};
-
-					otherFeed.addRoutes({search});
-				}
+			if (routes){
+				routes = {
+					read: routes.read ? this.root+routes.read : null,
+					readMany: routes.readMany ? this.root+routes.readMany : null,
+					all: routes.all ? this.root+routes.all : null,
+					query: routes.query ? this.root+routes.query : null,
+					create: routes.create ? this.root+routes.create : null,
+					update: routes.update ? this.root+routes.update : null,
+					delete: routes.delete ? this.root+routes.delete : null
+				};
+			} else {
+				routes = {};
 			}
+
+			if (joins){
+				const search = {};
+				for(let join in joins){
+					search[join] = this.root+joins[join];
+				}
+
+				routes.search = search;
+			}
+
+			feed.addRoutes(routes);
 		}
 	}
 
