@@ -21,18 +21,35 @@ describe('bmoor-comm::connect/Feed', function(){
 			httpMock.verifyWasFulfilled();
 		});
 
-		it('should properly define http.read', function( done ){
-			httpMock.expect('/test/101').respond('OK');
+		describe('::read', function(){
+			it('should work correctly', function( done ){
+				httpMock.expect('/test/101').respond('OK');
 
-			http.read({id:101}).then(
-				function( res ){
-					expect( res ).toBe( 'OK' );
-					done();
-				},
-				function( ex ){
-					console.log( 'Feed.spec :: test - fail', ex.message );
-				}
-			);
+				http.read({id:101}).then(
+					function( res ){
+						expect( res ).toBe( 'OK' );
+						done();
+					},
+					function( ex ){
+						console.log( 'Feed.spec :: test - fail', ex.message );
+					}
+				);
+			});
+
+			it('should work correctly', function( done ){
+				httpMock.expect('/test/101').reject('OK');
+
+				http.read({id:101}).then(
+					function(){
+						expect(1).toBe(0);
+						done();
+					},
+					function( ex ){
+						expect(ex.message).toBe('OK');
+						done();
+					}
+				);
+			});
 		});
 
 		it('should properly define http.all', function( done ){

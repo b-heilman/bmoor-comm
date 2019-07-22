@@ -8,8 +8,7 @@ class RequestorMock {
 
 		Requestor.clearCache();
 		Requestor.settings.fetcher = ( url, ops ) => {
-			var t,
-				p;
+			var t;
 
 			if ( this.callStack.length ){
 				t = this.callStack.shift();
@@ -26,14 +25,19 @@ class RequestorMock {
 					});
 				}
 
-				p = Promise.resolve({
-					json: function(){
-						return t.res || 'OK';
-					},
-					status: t.code || 200
-				});
+				if (t.success){
+					return Promise.resolve({
+						json: function(){
+							return t.res || 'OK';
+						},
+						status: t.code || 200
+					});
+				} else {
+					const err = new Error(t.res || 'OK');
+					err.status = t.code || 200;
 
-				return p;
+					return Promise.reject(err);
+				}
 			}else{
 				expect('callStack.length').toBe('not zero');
 			}
@@ -42,6 +46,7 @@ class RequestorMock {
 
 	expect( url, params, other ){
 		var t = {
+				success: true,
 				url: url,
 				other: other,
 				params: params
@@ -50,7 +55,12 @@ class RequestorMock {
 		this.callStack.push( t );
 
 		return {
-			respond: function( res, code ){
+			reject: function(err, code){
+				t.success = false;
+				t.res = err;
+				t.code = code;
+			},
+			respond: function(res, code){
 				t.res = res;
 				t.code = code;
 			}

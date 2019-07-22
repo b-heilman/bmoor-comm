@@ -1,5 +1,6 @@
 
-const Feed = require('./connect/Feed.js');
+const {Feed, index: feedIndex} = require('./Feed.js');
+const {Stream} = require('./Stream.js');
 
 class Sitemap {
 	constructor(root){
@@ -25,7 +26,7 @@ class Sitemap {
 	 *   }
 	 * }
 	 */
-	ingest(config){
+	ingest(config, settings = {}){
 		for(let service in config){
 			let feed = this.getFeed(service);
 
@@ -55,18 +56,25 @@ class Sitemap {
 			}
 
 			feed.addRoutes(routes);
+
+			if (settings.stream){
+				this.addStream(feed, service);
+			}
 		}
 	}
 
 	getFeed(service){
-		let feed = this.map[service];
+		let feed = feedIndex.get(service);
 
 		if (!feed){
-			feed = new Feed();
-			this.map[service] = feed;
+			feed = new Feed({name: service});
 		}
 
 		return feed;
+	}
+
+	addStream(feed, service){
+		return new Stream(feed, {name: service});
 	}
 }
 

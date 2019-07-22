@@ -1,5 +1,5 @@
 var bmoor = require('bmoor'),
-	uhaul = require('./Repo.js'),
+	uhaul = require('../Feed.js').index,
 	Promise = require('es6-promise').Promise;
 
 /*

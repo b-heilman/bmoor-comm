@@ -1,1 +1,0 @@
-module.exports = require('bmoor').Memory.use('uhaul');

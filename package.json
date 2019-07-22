@@ -1,6 +1,6 @@
 {
   "name": "bmoor-comm",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "author": "Brian Heilman <das.ist.junk@gmail.com>",
   "description": "Data communication",
   "license": "MIT",
@@ -18,6 +18,7 @@
     "bmoor": "^0.4.10",
     "es6-promise": "4.1.0",
     "formdata-polyfill": "^3.0.11",
+    "rxjs": "^6.5.2",
     "url-search-params-polyfill": "^5.1.0"
   },
   "devDependencies": {
